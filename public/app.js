@@ -1,5 +1,8 @@
 import { FRAMES, LINKS, LEGEND } from "./frames.js";
 
+// Carbon "Chat" icon (no emoji) for the comment surfaces
+const ICON_CHAT = `<svg class="ic" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M17.74 30L16 29l4-7h6a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9v2H6a4 4 0 0 1-4-4V8a4 4 0 0 1 4-4h20a4 4 0 0 1 4 4v12a4 4 0 0 1-4 4h-4.84Z"/></svg>`;
+
 const world = document.getElementById("world");
 const viewport = document.getElementById("viewport");
 const edges = document.getElementById("edges");
@@ -44,7 +47,7 @@ function renderThread(id) {
 
 // ---------------- render nodes ----------------
 const commentBlock = (id) => `<div class="wf-comments">
-    <button class="wf-comments-toggle">💬 Comments &amp; notes <span class="count"></span><span class="chev">▸</span></button>
+    <button class="wf-comments-toggle">${ICON_CHAT} Comments &amp; notes <span class="count"></span><span class="chev">›</span></button>
     <div class="wf-comments-body"><div class="wf-thread" data-thread="${id}"></div>
       <textarea class="wf-ta" data-ta="${id}" placeholder="comment on this view…"></textarea>
       <div class="wf-comment-actions"><button class="wf-save" data-save="${id}">Save</button></div></div></div>`;
@@ -124,7 +127,7 @@ function renderLegend() {
   const item = (sw, b, s, sem) => `<div class="legend-item"${sem ? ` data-sem="${sem}"` : ""}>${sw}<div><b>${b}</b><span>${s}</span></div></div>`;
   el.innerHTML =
     `<div class="legend-group"><h4>Semantic color <span style="text-transform:none;letter-spacing:0">— hover to glow</span></h4>${LEGEND.color.map(([c, b, s]) => item(swatch(c), b, s, c)).join("")}</div>` +
-    `<div class="legend-group"><h4>Markers</h4>${item(`<div class="legend-swatch mark-new"></div>`, "NEW for multiplayer", "added by this work; unmarked = existing screen, reused")}</div>` +
+    (COMMENTS ? `<div class="legend-group"><h4>Markers</h4>${item(`<div class="legend-swatch mark-new"></div>`, "NEW for multiplayer", "added by this work; unmarked = existing screen, reused")}</div>` : "") +
     `<div class="legend-group"><h4>Frame type</h4>${item(`<div class="legend-swatch frame-stage"></div>`, "Game window (16:9)", "true-proportion fixed stage a screen renders in")}${item(`<div class="legend-swatch frame-page"></div>`, "Whole page", "element lives OUTSIDE the game window (e.g. diagnostics drawer)")}</div>` +
     `<div class="legend-group"><h4>Reading the map</h4><div class="legend-item"><div><span>Arrows = flow transitions. Top lane = branches, middle = the online happy path, bottom = alternate/error paths.</span></div></div></div>`;
 }
@@ -138,17 +141,22 @@ function apply() {
   document.documentElement.style.setProperty("--inv", Math.min(2.8, Math.max(1, 1 / k)));
   if (pctEl()) pctEl().textContent = Math.round(k * 100) + "%";
 }
-function fit() {
+function contentBounds() {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const f of FRAMES) { const n = document.getElementById(`node-${f.id}`); minX = Math.min(minX, n.offsetLeft); minY = Math.min(minY, n.offsetTop); maxX = Math.max(maxX, n.offsetLeft + n.offsetWidth); maxY = Math.max(maxY, n.offsetTop + n.offsetHeight); }
-  // inset for any open side panel so nothing important hides behind it
-  const insetL = document.getElementById("legend")?.classList.contains("open") ? 340 : 0;
-  const insetR = document.getElementById("overall")?.classList.contains("open") ? 340 : 0;
-  const pad = 40;
-  const vw = viewport.clientWidth - insetL - insetR - pad * 2, vh = viewport.clientHeight - pad * 2;
-  k = Math.min(vw / (maxX - minX), vh / (maxY - minY), 1);
-  tx = insetL + pad - minX * k + Math.max(0, (vw - (maxX - minX) * k) / 2); ty = pad - minY * k; apply();
+  return { minX, minY, maxX, maxY, cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, w: maxX - minX, h: maxY - minY };
 }
+// Usable viewport region — EXCLUDES the open Key panel so we never center/fit
+// behind it (users can still pan content behind the panel manually).
+function avail() {
+  const insetL = document.getElementById("legend")?.classList.contains("open") ? 340 : 0;
+  const pad = 40, W = viewport.clientWidth, H = viewport.clientHeight;
+  const w = W - insetL - pad * 2, h = H - pad * 2;
+  return { w, h, cx: insetL + pad + w / 2, cy: pad + h / 2 };
+}
+function fit() { const b = contentBounds(), a = avail(); k = Math.min(a.w / b.w, a.h / b.h, 1); tx = a.cx - b.cx * k; ty = a.cy - b.cy * k; apply(); }
+function center() { const b = contentBounds(), a = avail(); tx = a.cx - b.cx * k; ty = a.cy - b.cy * k; apply(); } // recenter, keep zoom
+function reset() { fit(); } // center + fit (the default home view)
 viewport.addEventListener("wheel", (e) => {
   e.preventDefault();
   const r = viewport.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
@@ -194,7 +202,7 @@ function renderNotesBar() {
   if (!bar) { bar = document.createElement("div"); bar.id = "sel-bar"; document.body.appendChild(bar); }
   const has = selected.size > 0, fid = notesTarget(), ids = [...selected].sort();
   bar.classList.toggle("for-sel", has);
-  bar.innerHTML = `<div class="sel-bar-h">💬 ${has ? `one comment on <b>${ids.length}</b> selected frame${ids.length > 1 ? "s" : ""}` : "comment on the <b>whole board</b>"}
+  bar.innerHTML = `<div class="sel-bar-h">${ICON_CHAT} ${has ? `one comment on <b>${ids.length}</b> selected frame${ids.length > 1 ? "s" : ""}` : "comment on the <b>whole board</b>"}
       <span class="sel-ids">${has ? ids.join(" · ") : "nothing selected — posts a general board note"}</span></div>
     <div class="wf-thread" data-thread="${fid}"></div>
     <textarea class="wf-ta" id="sel-ta" placeholder="${has ? "one comment for all selected frames…" : "a note on the whole board…"}"></textarea>
@@ -222,8 +230,10 @@ document.addEventListener("click", (e) => {
 document.getElementById("zoom-in").onclick = () => { k = Math.min(2.5, k * 1.2); apply(); };
 document.getElementById("zoom-out").onclick = () => { k = Math.max(0.12, k / 1.2); apply(); };
 document.getElementById("fit").onclick = fit;
+document.getElementById("center").onclick = center;
+document.getElementById("reset").onclick = reset;
 // Key: hamburger toggle (closed by default), persists across refreshes
-document.getElementById("menu-fab").onclick = (e) => {
+document.getElementById("nav-menu").onclick = (e) => {
   const open = document.getElementById("legend").classList.toggle("open");
   e.currentTarget.classList.toggle("on", open);
   localStorage.setItem("ux-legend", open ? "open" : "closed");
@@ -261,13 +271,16 @@ function selectInRect(x0, y0, x1, y1) {
 (async function boot() {
   await detectAndLoad();
   document.getElementById("mode-badge").textContent = COMMENTS ? "feedback loop on · comments.db" : "view only";
-  if (!COMMENTS) document.getElementById("select-toggle")?.remove(); // no selection/notes in view-only
+  if (!COMMENTS) { // deployed/static: view-only — no comment tools, and NEW signifiers are irrelevant to the team view
+    document.body.classList.add("view-only");
+    document.getElementById("tool-fabs")?.remove();
+  }
   renderNodes();
   renderLegend();
   // Key: restore persisted open/closed state (default CLOSED — the ☰ hamburger opens it)
   const legendOpen = localStorage.getItem("ux-legend") === "open";
   document.getElementById("legend").classList.toggle("open", legendOpen);
-  document.getElementById("menu-fab").classList.toggle("on", legendOpen);
+  document.getElementById("nav-menu").classList.toggle("on", legendOpen);
   requestAnimationFrame(() => {
     layout();
     drawEdges();
