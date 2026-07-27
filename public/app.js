@@ -23,11 +23,13 @@ async function saveComment(id, text) {
   const r = await fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, text }) });
   STORE.fields[id] = await r.json();
   renderThread(id);
+  window.refreshComments?.();
 }
 async function recoverComment(id) {
   const r = await fetch("/api/feedback/recover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
   STORE.fields[id] = await r.json();
   renderThread(id);
+  window.refreshComments?.();
 }
 const fmtTime = (ts) => new Date(ts).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -90,6 +92,63 @@ function layout() {
 }
 
 // ---------------- flow arrows ----------------
+// Orthogonal routing (the flow-chart approach): edges travel the empty GUTTERS
+// between cards — the vertical channels between columns and the horizontal
+// channels between lanes — so a connector never disappears behind a card.
+// Cards occupy column×lane bands; the gutters between them are always clear
+// across the whole board, so a segment placed in a gutter can't hit a card.
+function orthoPath(pts, r = 12) {
+  if (pts.length === 2) return `M ${pts[0].x},${pts[0].y} L ${pts[1].x},${pts[1].y}`;
+  let d = `M ${pts[0].x},${pts[0].y}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1], p1 = pts[i], p2 = pts[i + 1];
+    const s1 = Math.sign(p1.x - p0.x), t1 = Math.sign(p1.y - p0.y);
+    const s2 = Math.sign(p2.x - p1.x), t2 = Math.sign(p2.y - p1.y);
+    const d1 = Math.min(r, Math.hypot(p1.x - p0.x, p1.y - p0.y) / 2);
+    const d2 = Math.min(r, Math.hypot(p2.x - p1.x, p2.y - p1.y) / 2);
+    d += ` L ${p1.x - s1 * d1},${p1.y - t1 * d1} Q ${p1.x},${p1.y} ${p1.x + s2 * d2},${p1.y + t2 * d2}`;
+  }
+  const last = pts[pts.length - 1];
+  return d + ` L ${last.x},${last.y}`;
+}
+
+function routeEdge(a, b) {
+  const aCx = a.x + a.w / 2, bCx = b.x + b.w / 2;
+  const aMy = a.y + a.h / 2, bMy = b.y + b.h / 2;
+  // same column → vertical connector down the gutter between the two lanes
+  if (Math.abs(aCx - bCx) < 24) {
+    const x = (aCx + bCx) / 2;
+    const y1 = b.y > a.y ? a.y + a.h : a.y;
+    const y2 = b.y > a.y ? b.y : b.y + b.h;
+    return { pts: [{ x, y: y1 }, { x, y: y2 }], lx: x, ly: (y1 + y2) / 2 };
+  }
+  const forward = bCx > aCx;
+  const ax = forward ? a.x + a.w : a.x;   // exit side
+  const bx = forward ? b.x : b.x + b.w;   // enter side
+  const multi = Math.abs(bx - ax) > GAP_X * 1.6;   // spans an intermediate column
+  if (!multi) {
+    // adjacent columns: one vertical hop in the column gutter between them
+    const midX = (ax + bx) / 2;
+    return {
+      pts: [{ x: ax, y: aMy }, { x: midX, y: aMy }, { x: midX, y: bMy }, { x: bx, y: bMy }],
+      lx: midX, ly: (aMy + bMy) / 2,
+    };
+  }
+  // multi-column: lift into the horizontal channel (lane gutter) between the
+  // two lanes and run across it, clear of every intermediate card.
+  const upper = a.y <= b.y ? a : b, lower = a.y <= b.y ? b : a;
+  const channelY = (upper.y + upper.h + lower.y) / 2;
+  const gx1 = ax + (forward ? GAP_X / 2 : -GAP_X / 2);
+  const gx2 = bx - (forward ? GAP_X / 2 : -GAP_X / 2);
+  return {
+    pts: [
+      { x: ax, y: aMy }, { x: gx1, y: aMy }, { x: gx1, y: channelY },
+      { x: gx2, y: channelY }, { x: gx2, y: bMy }, { x: bx, y: bMy },
+    ],
+    lx: (gx1 + gx2) / 2, ly: channelY,
+  };
+}
+
 function drawEdges() {
   edges.innerHTML = `<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#9aa0a6"/></marker></defs>`;
   const rect = (id) => { const n = document.getElementById(`node-${id}`); return { x: n.offsetLeft, y: n.offsetTop, w: n.offsetWidth, h: n.offsetHeight }; };
@@ -97,24 +156,14 @@ function drawEdges() {
   for (const link of LINKS) {
     const a = rect(link.from), b = rect(link.to);
     mx = Math.max(mx, a.x + a.w, b.x + b.w); my = Math.max(my, a.y + a.h, b.y + b.h);
-    let x1 = a.x + a.w, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y + b.h / 2;
-    if (b.x + b.w <= a.x) { x1 = a.x; x2 = b.x + b.w; }             // target strictly left → exit left
-    else if (Math.abs(b.x - a.x) < 20) {                            // roughly same column → vertical
-      x1 = a.x + a.w / 2; x2 = b.x + b.w / 2;
-      y1 = b.y > a.y ? a.y + a.h : a.y; y2 = b.y > a.y ? b.y : b.y + b.h;
-    }
-    const dx = Math.max(40, Math.abs(x2 - x1) * 0.5);
-    const vert = x1 === x2;
-    const d = vert
-      ? `M ${x1},${y1} C ${x1},${(y1 + y2) / 2} ${x2},${(y1 + y2) / 2} ${x2},${y2}`
-      : `M ${x1},${y1} C ${x1 + (x2 >= x1 ? dx : -dx)},${y1} ${x2 + (x2 >= x1 ? -dx : dx)},${y2} ${x2},${y2}`;
+    const { pts, lx, ly } = routeEdge(a, b);
     const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    p.setAttribute("d", d); p.setAttribute("class", "edge"); p.setAttribute("marker-end", "url(#arrow)");
+    p.setAttribute("d", orthoPath(pts)); p.setAttribute("class", "edge"); p.setAttribute("marker-end", "url(#arrow)");
     edges.appendChild(p);
     if (link.label) {
       const ns = "http://www.w3.org/2000/svg", g = document.createElementNS(ns, "g");
       const t = document.createElementNS(ns, "text");
-      t.setAttribute("x", (x1 + x2) / 2); t.setAttribute("y", (y1 + y2) / 2 - 4);
+      t.setAttribute("x", lx); t.setAttribute("y", ly - 4);
       t.setAttribute("class", "edge-label"); t.setAttribute("text-anchor", "middle"); t.setAttribute("dominant-baseline", "middle");
       t.textContent = link.label;
       g.appendChild(t); edges.appendChild(g);
@@ -139,6 +188,92 @@ function renderLegend() {
     `<div class="legend-group"><h4>Reading the map</h4><div class="legend-item"><div><span>Arrows = flow transitions. Top lane = branches, middle = the online happy path, bottom = alternate/error paths.</span></div></div></div>`;
 }
 
+// ---------------- comments browser (local dev only) ----------------
+// A searchable / filterable index of every saved comment, labelled by what it
+// targets: an individual card, a group (multi-select), or the whole board.
+// Scope is read from the note's field id: "__overall" → board, "sel:a+b" →
+// group, anything else → that card id.
+let cmtSearch = "", cmtScope = "all";
+const titleOf = (id) => FRAMES.find((f) => f.id === id)?.title || id;
+function classifyField(fieldId) {
+  if (fieldId === "__overall") return { scope: "board", label: "Whole board", ids: [] };
+  if (fieldId.startsWith("sel:")) { const ids = fieldId.slice(4).split("+"); return { scope: "group", label: `Group of ${ids.length}`, ids }; }
+  return { scope: "card", label: titleOf(fieldId), ids: [fieldId] };
+}
+function renderComments() {
+  const list = document.getElementById("comments-list");
+  if (!list) return;
+  const all = Object.entries(STORE.fields || {}).filter(([, d]) => d && d.entries && d.entries.length);
+  const rows = [];
+  for (const [fieldId, data] of all) {
+    const c = classifyField(fieldId);
+    if (cmtScope !== "all" && c.scope !== cmtScope) continue;
+    const hay = (c.label + " " + c.ids.map(titleOf).join(" ") + " " + data.entries.map((e) => e.text).join(" ")).toLowerCase();
+    if (cmtSearch && !hay.includes(cmtSearch)) continue;
+    rows.push({ fieldId, c, entries: data.entries, last: data.entries[data.entries.length - 1].ts });
+  }
+  rows.sort((a, b) => b.last - a.last);
+  document.getElementById("comments-count").textContent = `${rows.length}/${all.length}`;
+  list.innerHTML = rows.length
+    ? rows.map((r) => `<div class="cmt-item" data-ids="${esc(r.c.ids.join(","))}" tabindex="0">
+        <div class="cmt-head"><span class="cmt-scope cmt-scope-${r.c.scope}">${r.c.scope}</span><span class="cmt-target">${esc(r.c.label)}</span></div>
+        ${r.c.scope === "group" ? `<div class="cmt-sub">${esc(r.c.ids.map(titleOf).join(" · "))}</div>` : ""}
+        ${r.entries.map((e) => `<div class="cmt-text"><span class="cmt-time">${fmtTime(e.ts)}</span>${esc(e.text)}</div>`).join("")}
+      </div>`).join("")
+    : `<div class="cmt-empty">${cmtSearch || cmtScope !== "all" ? "no comments match" : "no comments yet"}</div>`;
+}
+function panToNodes(ids) {
+  const ns = ids.map((id) => document.getElementById(`node-${id}`)).filter(Boolean);
+  if (!ns.length) return;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  ns.forEach((n) => { minX = Math.min(minX, n.offsetLeft); minY = Math.min(minY, n.offsetTop); maxX = Math.max(maxX, n.offsetLeft + n.offsetWidth); maxY = Math.max(maxY, n.offsetTop + n.offsetHeight); });
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2, a = avail();
+  animateView(() => { tx = a.cx - cx * k; ty = a.cy - cy * k; apply(); });
+}
+function setupCommentsPanel() {
+  const tools = document.querySelector(".topbar .tools");
+  if (tools && !document.getElementById("comments-toggle")) {
+    const b = document.createElement("button");
+    b.id = "comments-toggle"; b.className = "tbtn"; b.title = "browse all comments";
+    b.innerHTML = ICON_CHAT;
+    tools.insertBefore(b, tools.firstChild);
+  }
+  if (!document.getElementById("comments-panel")) {
+    const aside = document.createElement("aside");
+    aside.id = "comments-panel"; aside.className = "panel comments-panel";
+    aside.innerHTML = `<div class="panel-h">Comments <span class="panel-sub" id="comments-count"></span></div>
+      <input id="comments-search" class="comments-search" placeholder="search comments…" autocomplete="off" spellcheck="false" />
+      <div class="comments-filters" id="comments-filters">
+        ${["all", "card", "group", "board"].map((s) => `<button class="cf${s === "all" ? " active" : ""}" data-scope="${s}">${s}</button>`).join("")}
+      </div>
+      <div class="comments-list" id="comments-list"></div>`;
+    document.body.appendChild(aside);
+  }
+  document.getElementById("comments-toggle").onclick = (e) => {
+    const open = document.getElementById("comments-panel").classList.toggle("open");
+    document.body.classList.toggle("comments-open", open);
+    e.currentTarget.classList.toggle("on", open);
+    if (open) renderComments();
+  };
+  document.getElementById("comments-search").oninput = (e) => { cmtSearch = e.target.value.trim().toLowerCase(); renderComments(); };
+  document.getElementById("comments-filters").onclick = (e) => {
+    const b = e.target.closest(".cf"); if (!b) return;
+    cmtScope = b.dataset.scope;
+    document.querySelectorAll("#comments-filters .cf").forEach((x) => x.classList.toggle("active", x === b));
+    renderComments();
+  };
+  document.getElementById("comments-list").onclick = (e) => {
+    const it = e.target.closest(".cmt-item"); if (!it) return;
+    const ids = it.dataset.ids ? it.dataset.ids.split(",").filter(Boolean) : [];
+    clearSel();
+    ids.forEach((id) => { const n = document.getElementById(`node-${id}`); if (n) { selected.add(id); n.classList.add("selected"); } });
+    renderNotesBar();
+    if (ids.length) panToNodes(ids);
+  };
+  window.refreshComments = renderComments;
+  renderComments();
+}
+
 // ---------------- pan / zoom ----------------
 let tx = 60, ty = 40, k = 0.7;
 const pctEl = () => document.getElementById("zoompct");
@@ -158,10 +293,11 @@ function contentBounds() {
 // can still pan content behind them manually).
 function avail() {
   const insetL = document.getElementById("legend")?.classList.contains("open") ? 340 : 0;
+  const insetR = document.getElementById("comments-panel")?.classList.contains("open") ? 340 : 0;
   const bar = document.getElementById("sel-bar");
   const insetB = bar ? bar.offsetHeight + 24 + 18 : 0; // bar height + its 24px bottom gap + margin
   const pad = 40, W = viewport.clientWidth, H = viewport.clientHeight;
-  const w = W - insetL - pad * 2, h = H - insetB - pad * 2;
+  const w = W - insetL - insetR - pad * 2, h = H - insetB - pad * 2;
   return { w, h, cx: insetL + pad + w / 2, cy: pad + h / 2 };
 }
 function fit() { const b = contentBounds(), a = avail(); k = Math.min(a.w / b.w, a.h / b.h, 1); tx = a.cx - b.cx * k; ty = a.cy - b.cy * k; apply(); }
@@ -321,6 +457,7 @@ function selectInRect(x0, y0, x1, y1) {
   }
   renderNodes();
   renderLegend();
+  if (COMMENTS) setupCommentsPanel(); // searchable/filterable comments index (local only)
   // Key: restore persisted open/closed state (default CLOSED — the ☰ hamburger opens it)
   const legendOpen = localStorage.getItem("ux-legend") === "open";
   document.getElementById("legend").classList.toggle("open", legendOpen);
