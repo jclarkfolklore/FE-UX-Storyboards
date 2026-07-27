@@ -282,9 +282,9 @@ body.view-only .is-new { outline: none; }
 @media (max-width: 660px) { .modal-cols, .modal-crit { grid-template-columns: 1fr; } }
 
 /* ---- view-only ribbon (deployed static build) ---- */
-#viewonly-flag { position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 45;
+#viewonly-flag { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); z-index: 45;
   background: var(--s-err); color: #fff; font: 700 12px var(--mono); letter-spacing: .1em;
-  padding: 6px 18px; border-radius: 0 0 13px 13px; box-shadow: 0 3px 14px rgba(210, 65, 65, .4); }
+  padding: 6px 18px; border-radius: 13px 13px 0 0; box-shadow: 0 -3px 14px rgba(210, 65, 65, .4); }
 #viewonly-flag[hidden] { display: none; }
 
 /* ============================ motion & polish ============================ */
