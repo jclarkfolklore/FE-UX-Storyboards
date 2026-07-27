@@ -221,6 +221,9 @@ function toggleSel(node) {
 function clearSel() { selected.forEach((id) => document.getElementById(`node-${id}`)?.classList.remove("selected")); selected.clear(); renderNotesBar(); }
 function renderNotesBar() {
   if (!COMMENTS) return;
+  // Clear button: enabled + glowing only when something is selected
+  const clearFab = document.getElementById("fab-clear");
+  if (clearFab) { clearFab.disabled = selected.size === 0; clearFab.classList.toggle("armed", selected.size > 0); }
   let bar = document.getElementById("sel-bar");
   if (!bar) { bar = document.createElement("div"); bar.id = "sel-bar"; document.body.appendChild(bar); }
   const has = selected.size > 0, fid = notesTarget(), ids = [...selected].sort();

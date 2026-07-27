@@ -39,19 +39,22 @@
       <svg id="edges" class="edges" xmlns="http://www.w3.org/2000/svg"></svg>
       <!-- nodes injected by app.js -->
     </div>
-    <div class="hint">drag to pan · scroll to zoom · <b>Fit</b> to frame all · menu (top-left) opens the Key</div>
+    <div class="hint">drag to pan · scroll or ⌘-drag to zoom</div>
   </div>
 
-  <!-- select-tool stack, beside the comment area -->
+  <!-- select-tool stack, beside the comment area (labels expand on hover) -->
   <div id="tool-fabs">
-    <button id="fab-select" class="fab" title="Select mode — click any card to select it">
+    <button id="fab-select" class="fab">
       <svg viewBox="0 0 32 32" fill="currentColor"><path d="M10 4v22l5.6-5.6L19 28l2.8-1.2-3.4-7.2H26z"/></svg>
+      <span class="fab-label">Click a card to select</span>
     </button>
-    <button id="fab-marquee" class="fab" title="Drag-select — drag a box over the canvas to select cards">
+    <button id="fab-marquee" class="fab">
       <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.6"><rect x="5" y="5" width="22" height="22" rx="1.5" stroke-dasharray="5 4"/></svg>
+      <span class="fab-label">Drag a box to select</span>
     </button>
-    <button id="fab-clear" class="fab clear" title="Clear selection">
+    <button id="fab-clear" class="fab clear" disabled>
       <svg viewBox="0 0 32 32" fill="currentColor"><path d="M24 9.4L22.6 8 16 14.6 9.4 8 8 9.4 14.6 16 8 22.6 9.4 24 16 17.4 22.6 24 24 22.6 17.4 16z"/></svg>
+      <span class="fab-label">Clear selection</span>
     </button>
   </div>
 

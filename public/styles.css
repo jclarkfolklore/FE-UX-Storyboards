@@ -78,7 +78,7 @@ body.marquee-mode .viewport { cursor: crosshair; }
 .edge { fill: none; stroke: #98a0ad; stroke-width: 2.25; }
 .edge-label { font-family: var(--mono); font-size: 13.5px; fill: #333a45; font-weight: 500; }
 .edge-label-bg { fill: rgba(255, 255, 255, .94); stroke: #ccd2da; stroke-width: 1; }
-.hint { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); font-size: 12.5px; color: #4a5160;
+.hint { position: absolute; bottom: 14px; left: 16px; font-size: 12.5px; color: #4a5160;
   background: var(--glass-strong); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
   padding: 6px 14px; border-radius: 22px; z-index: 5; border: 1px solid var(--glass-brd); box-shadow: var(--glass-shadow); }
 
@@ -209,18 +209,25 @@ body.marquee-mode .viewport { cursor: crosshair; }
 .sel-bar-h .sel-ids { flex: 1; color: var(--faint); font: 10.5px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* select-tool FABs — parked just to the right of the comment bar */
-#tool-fabs { position: fixed; bottom: 24px; left: calc(50% + 296px); display: flex; flex-direction: column; gap: 10px; z-index: 61; }
+#tool-fabs { position: fixed; bottom: 24px; left: calc(50% + 296px); display: flex; flex-direction: column; align-items: flex-start; gap: 10px; z-index: 61; }
 
 /* deployed / static view-only: NEW signifiers aren't relevant to the team view */
 body.view-only .node.new::before { display: none; }
 body.view-only .node.new { border-color: #cfd4db; border-width: 1px; }
 body.view-only .is-new { outline: none; }
-.fab { width: 48px; height: 48px; border-radius: 15px; cursor: pointer; font-size: 19px; display: grid; place-items: center; color: #333;
+.fab { min-width: 48px; height: 48px; padding: 0 13px; border-radius: 15px; cursor: pointer; color: #333;
+  display: flex; align-items: center; justify-content: flex-start; overflow: hidden;
   background: rgba(255, 255, 255, .97); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
   border: 1px solid #cfd6e0; box-shadow: 0 6px 22px rgba(20, 30, 55, .26); transition: transform .1s, background .12s; }
 .fab:hover { transform: translateY(-2px); background: #fff; }
 .fab.on { background: rgba(47, 111, 214, .95); color: #fff; border-color: transparent; }
 .fab.clear { color: var(--s-err); }
+.fab svg { flex: none; }
+.fab-label { max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap; margin-left: 0; font-size: 13px; font-weight: 600;
+  transition: max-width .22s ease, opacity .18s, margin-left .22s; }
+.fab:hover .fab-label { max-width: 170px; opacity: 1; margin-left: 9px; }
+.fab:disabled { opacity: .38; cursor: default; pointer-events: none; box-shadow: 0 3px 10px rgba(20, 30, 55, .12); }
+.fab.clear.armed { box-shadow: 0 0 0 2px rgba(210, 65, 65, .6), 0 0 20px 4px rgba(210, 65, 65, .45), 0 6px 22px rgba(20, 30, 55, .26); }
 
 /* ---- panels: Key + overall (glass) ---- */
 .panel { position: fixed; top: 52px; bottom: 0; width: 336px; z-index: 30; overflow: auto; padding: 17px; transition: transform .2s cubic-bezier(.4,0,.2,1);
