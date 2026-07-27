@@ -1,0 +1,8 @@
+{
+  "name": "multiplayer-ux-storyboards",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Theme-agnostic wireframe storyboards (canvas viewer) for rock-em-sock-em multiplayer UX — design spike.",
+  "scripts": { "start": "node server.mjs" }
+}

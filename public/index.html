@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Multiplayer UX — Storyboards</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <strong>Multiplayer UX — Flow Storyboards</strong>
+      <span class="sub">wireframes · theme-agnostic · design spike</span>
+    </div>
+    <div class="tools">
+      <button id="overall-toggle" class="tbtn">📝 Overall notes</button>
+      <span class="sep"></span>
+      <button id="zoom-out" class="tbtn" title="zoom out">–</button>
+      <button id="zoom-in" class="tbtn" title="zoom in">＋</button>
+      <button id="fit" class="tbtn" title="fit to screen">Fit</button>
+    </div>
+  </header>
+
+  <div id="viewport" class="viewport">
+    <div id="world" class="world">
+      <svg id="edges" class="edges" xmlns="http://www.w3.org/2000/svg"></svg>
+      <!-- nodes injected by app.js -->
+    </div>
+    <div class="hint">drag to pan · scroll to zoom · click 💬 on a card to comment</div>
+  </div>
+
+  <aside id="overall" class="overall">
+    <div class="overall-h">Overall notes <span class="overall-sub">flow, gaps, big-picture</span></div>
+    <div class="wf-thread"></div>
+    <textarea class="wf-ta" data-ta="__overall" placeholder="overall thoughts on the whole flow…"></textarea>
+    <div class="wf-comment-actions"><button class="wf-save" data-save="__overall">Save</button></div>
+  </aside>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
