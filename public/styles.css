@@ -68,8 +68,9 @@ body.marquee-mode .viewport { cursor: crosshair; }
 .viewport.grabbing { cursor: grabbing; }
 .world { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
 .edges { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; z-index: 1; }
-.edge { fill: none; stroke: #8b93a0; stroke-width: 2.25; }
-.edge-label { font-family: var(--mono); font-size: 13px; fill: #48505c; paint-order: stroke; stroke: #eceff3; stroke-width: 5px; }
+.edge { fill: none; stroke: #98a0ad; stroke-width: 2.25; }
+.edge-label { font-family: var(--mono); font-size: 13.5px; fill: #333a45; font-weight: 500; }
+.edge-label-bg { fill: rgba(255, 255, 255, .94); stroke: #ccd2da; stroke-width: 1; }
 .hint { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); font-size: 12.5px; color: #4a5160;
   background: var(--glass-strong); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
   padding: 6px 14px; border-radius: 22px; z-index: 5; border: 1px solid var(--glass-brd); box-shadow: var(--glass-shadow); }
@@ -232,3 +233,35 @@ body.view-only .is-new { outline: none; }
 .legend-swatch.frame-stage { border-color: var(--line-strong); background: #fbfcfd; }
 .legend-swatch.frame-page { border-color: var(--s-net); background: #f4f2fa; }
 .legend-swatch.mark-new { border: 1.5px dashed var(--s-new); background: #fff; }
+
+/* ---- info button + design-brief modal ---- */
+.tbtn .ic { width: 15px; height: 15px; vertical-align: -3px; margin-right: 4px; }
+.modal { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 28px;
+  background: rgba(18, 24, 38, .42); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+.modal[hidden] { display: none; }
+.modal-card { position: relative; width: min(780px, 94vw); max-height: 88vh; overflow: auto; padding: 34px 38px;
+  background: var(--glass-strong); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-brd); border-radius: 22px; box-shadow: 0 24px 66px rgba(10, 16, 30, .38); }
+.modal-close { position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; border: none; border-radius: 11px;
+  background: rgba(0, 0, 0, .05); color: #555; cursor: pointer; display: grid; place-items: center; }
+.modal-close:hover { background: rgba(0, 0, 0, .1); }
+.modal-close svg { width: 18px; height: 18px; }
+.modal-eyebrow { font: 700 11px var(--mono); text-transform: uppercase; letter-spacing: .12em; color: var(--s-act); margin-bottom: 9px; }
+.modal-card h2 { font-size: 25px; margin: 0 0 13px; line-height: 1.2; }
+.modal-lede { font-size: 15px; line-height: 1.62; color: #3a424e; margin: 0 0 24px; }
+.modal-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+.modal-sec { background: rgba(255, 255, 255, .55); border: 1px solid var(--glass-brd); border-radius: 13px; padding: 17px 19px; }
+.modal-sec h3 { font-size: 14px; margin: 0 0 7px; color: var(--s-act); }
+.modal-sec p { font-size: 13.5px; line-height: 1.58; color: #444d59; margin: 0; }
+.modal-crit-h { font-size: 16px; margin: 0 0 14px; }
+.modal-crit { list-style: none; padding: 0; margin: 0 0 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 11px 26px; }
+.modal-crit li { padding-left: 24px; position: relative; font-size: 13.5px; line-height: 1.5; color: #3f4854; }
+.modal-crit li::before { content: ""; position: absolute; left: 5px; top: 6px; width: 9px; height: 9px; border-radius: 3px; background: var(--s-you); }
+.modal-foot { font-size: 12.5px; color: var(--dim); border-top: 1px solid var(--line); padding-top: 15px; margin: 0; }
+@media (max-width: 660px) { .modal-cols, .modal-crit { grid-template-columns: 1fr; } }
+
+/* ---- view-only ribbon (deployed static build) ---- */
+#viewonly-flag { position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 45;
+  background: var(--s-err); color: #fff; font: 700 12px var(--mono); letter-spacing: .1em;
+  padding: 6px 18px; border-radius: 0 0 13px 13px; box-shadow: 0 3px 14px rgba(210, 65, 65, .4); }
+#viewonly-flag[hidden] { display: none; }
