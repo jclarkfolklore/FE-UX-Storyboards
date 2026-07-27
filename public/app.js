@@ -1,210 +1,219 @@
-import { FRAMES, LINKS } from "./frames.js";
+import { FRAMES, LINKS, LEGEND } from "./frames.js";
 
 const world = document.getElementById("world");
 const viewport = document.getElementById("viewport");
 const edges = document.getElementById("edges");
 
-// ---------------- comment API ----------------
+// ---------------- comments (server only; the DEPLOYED static build is view-only) ----------------
+// COMMENTS = true only when the comment server is present (local `npm start`) — that's
+// the Claude↔user feedback loop. On Netlify (static, no /api) the whole comment/notes
+// feature is hidden and the app is view-only.
+let COMMENTS = false;
 let STORE = { fields: {} };
-async function loadStore() {
+async function detectAndLoad() {
   try {
-    STORE = await (await fetch("/api/feedback")).json();
-  } catch {
-    STORE = { fields: {} };
-  }
+    const r = await fetch("/api/feedback", { cache: "no-store" });
+    if (r.ok) { COMMENTS = true; STORE = await r.json(); STORE.fields ||= {}; }
+  } catch { COMMENTS = false; }
 }
 async function saveComment(id, text) {
-  const r = await fetch("/api/feedback", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id, text }),
-  });
+  const r = await fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, text }) });
   STORE.fields[id] = await r.json();
   renderThread(id);
 }
 async function recoverComment(id) {
-  const r = await fetch("/api/feedback/recover", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id }),
-  });
+  const r = await fetch("/api/feedback/recover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
   STORE.fields[id] = await r.json();
   renderThread(id);
 }
 const fmtTime = (ts) => new Date(ts).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 function renderThread(id) {
   const wrap = document.querySelector(`[data-thread="${id}"]`);
   if (!wrap) return;
   const f = STORE.fields[id] || { entries: [], archived: [] };
-  const entries = f.entries || [];
-  const archived = f.archived || [];
-  const toggle = wrap.closest(".wf-comments")?.querySelector(".wf-comments-toggle .count");
-  if (toggle) toggle.textContent = entries.length ? `(${entries.length})` : "";
+  const count = wrap.closest(".wf-comments, .overall")?.querySelector(".count");
+  if (count) count.textContent = f.entries?.length ? `(${f.entries.length})` : "";
   wrap.innerHTML =
-    (entries.length
-      ? entries.map((e) => `<div class="wf-entry"><span class="wf-entry-t">${fmtTime(e.ts)}</span>${escapeHtml(e.text)}</div>`).join("")
+    (f.entries?.length
+      ? f.entries.map((e) => `<div class="wf-entry"><span class="wf-entry-t">${fmtTime(e.ts)}</span>${esc(e.text)}</div>`).join("")
       : `<div class="wf-entry wf-empty">no comments yet</div>`) +
-    (archived.length
-      ? `<button class="wf-recover" data-recover="${id}">⤺ recover ${archived.length} archived batch${archived.length > 1 ? "es" : ""}</button>`
-      : "");
-}
-function escapeHtml(s) {
-  return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    (f.archived?.length ? `<button class="wf-recover" data-recover="${id}">⤺ recover ${f.archived.length} archived</button>` : "");
 }
 
 // ---------------- render nodes ----------------
-function commentBlock(id) {
-  return `<div class="wf-comments" data-comments="${id}">
-    <button class="wf-comments-toggle">💬 comments <span class="count"></span> <span class="chev">▸</span></button>
-    <div class="wf-comments-body">
-      <div class="wf-thread" data-thread="${id}"></div>
-      <textarea class="wf-ta" data-ta="${id}" placeholder="leave a comment on this view…"></textarea>
-      <div class="wf-comment-actions"><button class="wf-save" data-save="${id}">Save</button></div>
-    </div>
-  </div>`;
-}
+const commentBlock = (id) => `<div class="wf-comments">
+    <button class="wf-comments-toggle">💬 comments <span class="count"></span><span class="chev">▸</span></button>
+    <div class="wf-comments-body"><div class="wf-thread" data-thread="${id}"></div>
+      <textarea class="wf-ta" data-ta="${id}" placeholder="comment on this view…"></textarea>
+      <div class="wf-comment-actions"><button class="wf-save" data-save="${id}">Save</button></div></div></div>`;
+
 function renderNodes() {
   for (const fr of FRAMES) {
     const el = document.createElement("div");
-    el.className = "node";
+    el.className = "node" + (fr.isNew ? " new" : "");
     el.id = `node-${fr.id}`;
-    el.style.left = fr.x + "px";
-    el.style.top = fr.y + "px";
     el.style.width = fr.w + "px";
-    el.innerHTML = `
-      <div class="node-head"><span class="node-title">${fr.title}</span><span class="node-tag">${fr.tag}</span></div>
-      <div class="node-wire">${fr.wire}</div>
-      <div class="node-desc">${fr.desc}</div>
-      ${commentBlock(fr.id)}`;
+    el.innerHTML = `<div class="node-head"><span class="node-title">${fr.title}</span><span class="node-tag">${fr.tag}</span></div>
+      <div class="node-wire">${fr.wire}</div><div class="node-desc">${fr.desc}</div>${COMMENTS ? commentBlock(fr.id) : ""}`;
     world.appendChild(el);
   }
 }
 
-// ---------------- flow arrows (SVG in world space) ----------------
+// ---------------- grid auto-layout (col × lane → non-overlapping) ----------------
+const GAP_X = 70, GAP_Y = 56;
+function layout() {
+  const cols = [...new Set(FRAMES.map((f) => f.col))].sort((a, b) => a - b);
+  const lanes = [...new Set(FRAMES.map((f) => f.lane))].sort((a, b) => a - b);
+  const nodeH = {}, nodeW = {};
+  for (const f of FRAMES) {
+    const n = document.getElementById(`node-${f.id}`);
+    nodeH[f.id] = n.offsetHeight; nodeW[f.id] = n.offsetWidth;
+  }
+  const colW = {}, laneH = {};
+  for (const c of cols) colW[c] = Math.max(...FRAMES.filter((f) => f.col === c).map((f) => nodeW[f.id]));
+  for (const l of lanes) laneH[l] = Math.max(...FRAMES.filter((f) => f.lane === l).map((f) => nodeH[f.id]));
+  const colX = {}; let x = 0;
+  for (const c of cols) { colX[c] = x; x += colW[c] + GAP_X; }
+  const laneY = {}; let y = 0;
+  for (const l of lanes) { laneY[l] = y; y += laneH[l] + GAP_Y; }
+  for (const f of FRAMES) {
+    const n = document.getElementById(`node-${f.id}`);
+    n.style.left = colX[f.col] + (colW[f.col] - nodeW[f.id]) / 2 + "px";  // center in cell
+    n.style.top = laneY[f.lane] + (laneH[f.lane] - nodeH[f.id]) / 2 + "px";
+  }
+}
+
+// ---------------- flow arrows ----------------
 function drawEdges() {
-  edges.innerHTML = `<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
-    <path d="M0,0 L8,3 L0,6 Z" fill="var(--edge)"/></marker></defs>`;
-  let maxX = 0, maxY = 0;
-  const rect = (id) => {
-    const n = document.getElementById(`node-${id}`);
-    return { x: n.offsetLeft, y: n.offsetTop, w: n.offsetWidth, h: n.offsetHeight };
-  };
+  edges.innerHTML = `<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#9aa0a6"/></marker></defs>`;
+  const rect = (id) => { const n = document.getElementById(`node-${id}`); return { x: n.offsetLeft, y: n.offsetTop, w: n.offsetWidth, h: n.offsetHeight }; };
+  let mx = 0, my = 0;
   for (const link of LINKS) {
     const a = rect(link.from), b = rect(link.to);
-    maxX = Math.max(maxX, a.x + a.w, b.x + b.w);
-    maxY = Math.max(maxY, a.y + a.h, b.y + b.h);
-    // connect from a's right-center to b's left-center (fallback to nearest sides)
+    mx = Math.max(mx, a.x + a.w, b.x + b.w); my = Math.max(my, a.y + a.h, b.y + b.h);
     let x1 = a.x + a.w, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y + b.h / 2;
-    if (b.x < a.x) { x1 = a.x; x2 = b.x + b.w; } // b is to the left → exit left, enter right
+    if (b.x + b.w <= a.x) { x1 = a.x; x2 = b.x + b.w; }             // target strictly left → exit left
+    else if (Math.abs(b.x - a.x) < 20) {                            // roughly same column → vertical
+      x1 = a.x + a.w / 2; x2 = b.x + b.w / 2;
+      y1 = b.y > a.y ? a.y + a.h : a.y; y2 = b.y > a.y ? b.y : b.y + b.h;
+    }
     const dx = Math.max(40, Math.abs(x2 - x1) * 0.5);
-    const c1 = x1 + (x2 >= x1 ? dx : -dx), c2 = x2 + (x2 >= x1 ? -dx : dx);
-    const path = `M ${x1},${y1} C ${c1},${y1} ${c2},${y2} ${x2},${y2}`;
+    const vert = x1 === x2;
+    const d = vert
+      ? `M ${x1},${y1} C ${x1},${(y1 + y2) / 2} ${x2},${(y1 + y2) / 2} ${x2},${y2}`
+      : `M ${x1},${y1} C ${x1 + (x2 >= x1 ? dx : -dx)},${y1} ${x2 + (x2 >= x1 ? -dx : dx)},${y2} ${x2},${y2}`;
     const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    p.setAttribute("d", path);
-    p.setAttribute("class", "edge");
-    p.setAttribute("marker-end", "url(#arrow)");
+    p.setAttribute("d", d); p.setAttribute("class", "edge"); p.setAttribute("marker-end", "url(#arrow)");
     edges.appendChild(p);
     if (link.label) {
       const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      t.setAttribute("x", (x1 + x2) / 2);
-      t.setAttribute("y", (y1 + y2) / 2 - 6);
-      t.setAttribute("class", "edge-label");
-      t.setAttribute("text-anchor", "middle");
-      t.textContent = link.label;
-      edges.appendChild(t);
+      t.setAttribute("x", (x1 + x2) / 2); t.setAttribute("y", (y1 + y2) / 2 - 6);
+      t.setAttribute("class", "edge-label"); t.setAttribute("text-anchor", "middle");
+      t.textContent = link.label; edges.appendChild(t);
     }
   }
-  edges.setAttribute("width", maxX + 200);
-  edges.setAttribute("height", maxY + 200);
+  edges.setAttribute("width", mx + 200); edges.setAttribute("height", my + 200);
+}
+
+// ---------------- legend ----------------
+function renderLegend() {
+  const el = document.getElementById("legend-body");
+  const swatch = (cls) => `<div class="legend-swatch" style="border-color:var(--${cls});background:color-mix(in srgb, var(--${cls}) 12%, #fff)"></div>`;
+  const item = (sw, b, s) => `<div class="legend-item">${sw}<div><b>${b}</b><span>${s}</span></div></div>`;
+  el.innerHTML =
+    `<div class="legend-group"><h4>Semantic color</h4>${LEGEND.color.map(([c, b, s]) => item(swatch(c), b, s)).join("")}</div>` +
+    `<div class="legend-group"><h4>Markers</h4>${item(`<div class="legend-swatch mark-new"></div>`, "NEW for multiplayer", "added by this work; unmarked = existing screen, reused")}</div>` +
+    `<div class="legend-group"><h4>Frame type</h4>${item(`<div class="legend-swatch frame-stage"></div>`, "Game window (16:9)", "true-proportion fixed stage a screen renders in")}${item(`<div class="legend-swatch frame-page"></div>`, "Whole page", "element lives OUTSIDE the game window (e.g. diagnostics drawer)")}</div>` +
+    `<div class="legend-group"><h4>Reading the map</h4><div class="legend-item"><div><span>Arrows = flow transitions. Top lane = branches, middle = the online happy path, bottom = alternate/error paths.</span></div></div></div>`;
 }
 
 // ---------------- pan / zoom ----------------
 let tx = 60, ty = 40, k = 0.7;
-function apply() {
-  world.style.transform = `translate(${tx}px, ${ty}px) scale(${k})`;
-}
+const pctEl = () => document.getElementById("zoompct");
+function apply() { world.style.transform = `translate(${tx}px,${ty}px) scale(${k})`; if (pctEl()) pctEl().textContent = Math.round(k * 100) + "%"; }
 function fit() {
-  // fit all nodes into the viewport
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const fr of FRAMES) {
-    const n = document.getElementById(`node-${fr.id}`);
-    minX = Math.min(minX, n.offsetLeft);
-    minY = Math.min(minY, n.offsetTop);
-    maxX = Math.max(maxX, n.offsetLeft + n.offsetWidth);
-    maxY = Math.max(maxY, n.offsetTop + n.offsetHeight);
-  }
-  const vw = viewport.clientWidth, vh = viewport.clientHeight;
-  const pad = 80;
-  k = Math.min((vw - pad * 2) / (maxX - minX), (vh - pad * 2) / (maxY - minY), 1);
-  tx = pad - minX * k + (vw - pad * 2 - (maxX - minX) * k) / 2;
-  ty = pad - minY * k;
-  apply();
+  for (const f of FRAMES) { const n = document.getElementById(`node-${f.id}`); minX = Math.min(minX, n.offsetLeft); minY = Math.min(minY, n.offsetTop); maxX = Math.max(maxX, n.offsetLeft + n.offsetWidth); maxY = Math.max(maxY, n.offsetTop + n.offsetHeight); }
+  // inset for any open side panel so nothing important hides behind it
+  const insetL = document.getElementById("legend")?.classList.contains("open") ? 340 : 0;
+  const insetR = document.getElementById("overall")?.classList.contains("open") ? 340 : 0;
+  const pad = 40;
+  const vw = viewport.clientWidth - insetL - insetR - pad * 2, vh = viewport.clientHeight - pad * 2;
+  k = Math.min(vw / (maxX - minX), vh / (maxY - minY), 1);
+  tx = insetL + pad - minX * k + Math.max(0, (vw - (maxX - minX) * k) / 2); ty = pad - minY * k; apply();
 }
 viewport.addEventListener("wheel", (e) => {
   e.preventDefault();
-  const rect = viewport.getBoundingClientRect();
-  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-  const wx = (mx - tx) / k, wy = (my - ty) / k;
-  const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
-  k = Math.min(2.5, Math.max(0.15, k * factor));
-  tx = mx - wx * k;
-  ty = my - wy * k;
-  apply();
+  const r = viewport.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  const wx = (mx - tx) / k, wy = (my - ty) / k, f = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+  k = Math.min(2.5, Math.max(0.12, k * f)); tx = mx - wx * k; ty = my - wy * k; apply();
 }, { passive: false });
+let pan = false, sx = 0, sy = 0;
+viewport.addEventListener("mousedown", (e) => { if (e.target.closest(".node")) return; pan = true; sx = e.clientX - tx; sy = e.clientY - ty; viewport.classList.add("grabbing"); });
+window.addEventListener("mousemove", (e) => { if (!pan) return; tx = e.clientX - sx; ty = e.clientY - sy; apply(); });
+window.addEventListener("mouseup", () => { pan = false; viewport.classList.remove("grabbing"); });
 
-let panning = false, sx = 0, sy = 0;
-viewport.addEventListener("mousedown", (e) => {
-  if (e.target.closest(".node")) return; // let nodes handle their own interactions
-  panning = true;
-  sx = e.clientX - tx;
-  sy = e.clientY - ty;
-  viewport.classList.add("grabbing");
-});
-window.addEventListener("mousemove", (e) => {
-  if (!panning) return;
-  tx = e.clientX - sx;
-  ty = e.clientY - sy;
-  apply();
-});
-window.addEventListener("mouseup", () => {
-  panning = false;
-  viewport.classList.remove("grabbing");
-});
+// ---------------- multi-frame selection + a comment on the whole selection ----------------
+const selected = new Set();
+const selKey = () => "sel:" + [...selected].sort().join("+");
+function clearSel() { selected.forEach((id) => document.getElementById(`node-${id}`)?.classList.remove("selected")); selected.clear(); renderSelBar(); }
+function renderSelBar() {
+  let bar = document.getElementById("sel-bar");
+  if (!selected.size || !COMMENTS) { bar?.remove(); return; }
+  if (!bar) { bar = document.createElement("div"); bar.id = "sel-bar"; document.body.appendChild(bar); }
+  const ids = [...selected].sort(), fid = selKey();
+  bar.innerHTML = `<div class="sel-bar-h">💬 one comment on <b>${ids.length}</b> selected frame${ids.length > 1 ? "s" : ""}
+      <span class="sel-ids">${ids.join(" · ")}</span><button id="sel-clear">clear selection</button></div>
+    <div class="wf-thread" data-thread="${fid}"></div>
+    <textarea class="wf-ta" id="sel-ta" placeholder="one comment for all selected frames…"></textarea>
+    <div class="wf-comment-actions"><button class="wf-save" id="sel-save">Save</button></div>`;
+  renderThread(fid);
+}
 
-// ---------------- events (comments + toolbar) ----------------
+// ---------------- events ----------------
 document.addEventListener("click", (e) => {
   const save = e.target.closest("[data-save]");
-  if (save) {
-    const id = save.dataset.save;
-    const ta = document.querySelector(`[data-ta="${id}"]`);
-    if (ta && ta.value.trim()) {
-      saveComment(id, ta.value);
-      ta.value = "";
-    }
-    return;
+  if (save) { const id = save.dataset.save, ta = document.querySelector(`[data-ta="${id}"]`); if (ta?.value.trim()) { saveComment(id, ta.value); ta.value = ""; } return; }
+  if (e.target.id === "sel-save") { const ta = document.getElementById("sel-ta"); if (ta?.value.trim()) { saveComment(selKey(), ta.value); ta.value = ""; } return; }
+  if (e.target.id === "sel-clear") return clearSel();
+  const rec = e.target.closest("[data-recover]"); if (rec) return recoverComment(rec.dataset.recover);
+  const tog = e.target.closest(".wf-comments-toggle"); if (tog) return tog.closest(".wf-comments").classList.toggle("open");
+  if (!COMMENTS) return;
+  // click a card's HEADER toggles selection (leaves text/buttons alone)
+  const head = e.target.closest(".node-head");
+  if (head && !e.target.closest("button,a,textarea,input")) {
+    const node = head.closest(".node"), id = node.id.replace("node-", "");
+    selected.has(id) ? (selected.delete(id), node.classList.remove("selected")) : (selected.add(id), node.classList.add("selected"));
+    return renderSelBar();
   }
-  const rec = e.target.closest("[data-recover]");
-  if (rec) return recoverComment(rec.dataset.recover);
-  const toggle = e.target.closest(".wf-comments-toggle");
-  if (toggle) {
-    toggle.closest(".wf-comments").classList.toggle("open");
-    return;
-  }
+  // click on empty canvas clears the selection
+  if (!e.target.closest(".node, #sel-bar, .panel, .topbar")) clearSel();
 });
 document.getElementById("zoom-in").onclick = () => { k = Math.min(2.5, k * 1.2); apply(); };
-document.getElementById("zoom-out").onclick = () => { k = Math.max(0.15, k / 1.2); apply(); };
+document.getElementById("zoom-out").onclick = () => { k = Math.max(0.12, k / 1.2); apply(); };
 document.getElementById("fit").onclick = fit;
-document.getElementById("overall-toggle").onclick = () => document.getElementById("overall").classList.toggle("open");
+document.getElementById("overall-toggle").onclick = (e) => { e.currentTarget.classList.toggle("on"); document.getElementById("overall").classList.toggle("open"); };
+document.getElementById("legend-toggle").onclick = (e) => { e.currentTarget.classList.toggle("on"); document.getElementById("legend").classList.toggle("open"); };
 
 // ---------------- boot ----------------
 (async function boot() {
-  await loadStore();
+  await detectAndLoad();
+  document.getElementById("mode-badge").textContent = COMMENTS ? "feedback loop on · comments.db · click a card header to select" : "view only";
+  if (!COMMENTS) { // view-only: strip the notes/comments affordances entirely
+    document.getElementById("overall-toggle")?.remove();
+    document.getElementById("overall")?.remove();
+  }
   renderNodes();
-  // overall-comments panel wires to the same API under id "__overall"
+  renderLegend();
   document.querySelector("#overall .wf-thread")?.setAttribute("data-thread", "__overall");
-  drawEdges();
-  for (const fr of FRAMES) renderThread(fr.id);
-  renderThread("__overall");
-  requestAnimationFrame(fit);
+  requestAnimationFrame(() => {
+    layout();
+    drawEdges();
+    if (COMMENTS) { for (const f of FRAMES) renderThread(f.id); renderThread("__overall"); }
+    fit();
+    document.getElementById("legend").classList.add("open");
+    document.getElementById("legend-toggle").classList.add("on");
+  });
 })();

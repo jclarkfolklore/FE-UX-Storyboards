@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Multiplayer UX — Storyboards</title>
+  <title>Multiplayer UX — Flow Storyboards</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -11,11 +11,14 @@
     <div class="brand">
       <strong>Multiplayer UX — Flow Storyboards</strong>
       <span class="sub">wireframes · theme-agnostic · design spike</span>
+      <span id="mode-badge" class="sub" style="font-family:var(--mono);font-size:10px"></span>
     </div>
     <div class="tools">
+      <button id="legend-toggle" class="tbtn">🔑 Key</button>
       <button id="overall-toggle" class="tbtn">📝 Overall notes</button>
       <span class="sep"></span>
       <button id="zoom-out" class="tbtn" title="zoom out">–</button>
+      <span id="zoompct" class="zoompct">70%</span>
       <button id="zoom-in" class="tbtn" title="zoom in">＋</button>
       <button id="fit" class="tbtn" title="fit to screen">Fit</button>
     </div>
@@ -26,11 +29,16 @@
       <svg id="edges" class="edges" xmlns="http://www.w3.org/2000/svg"></svg>
       <!-- nodes injected by app.js -->
     </div>
-    <div class="hint">drag to pan · scroll to zoom · click 💬 on a card to comment</div>
+    <div class="hint">drag to pan · scroll to zoom · <b>Fit</b> to frame all · <b>Key</b> explains the colors</div>
   </div>
 
-  <aside id="overall" class="overall">
-    <div class="overall-h">Overall notes <span class="overall-sub">flow, gaps, big-picture</span></div>
+  <aside id="legend" class="panel legend">
+    <div class="panel-h">Key <span class="panel-sub">how to read the map</span></div>
+    <div id="legend-body"></div>
+  </aside>
+
+  <aside id="overall" class="panel overall">
+    <div class="panel-h">Overall notes <span class="panel-sub">flow, gaps, big-picture <span class="count"></span></span></div>
     <div class="wf-thread"></div>
     <textarea class="wf-ta" data-ta="__overall" placeholder="overall thoughts on the whole flow…"></textarea>
     <div class="wf-comment-actions"><button class="wf-save" data-save="__overall">Save</button></div>

@@ -1,0 +1,13 @@
+# Netlify deploy — static, VIEW-ONLY.
+# We publish only ./public. There is no comment server on Netlify, so the app's
+# probe of /api/feedback fails and the comment/notes feature hides itself
+# (view-only). The comment feedback loop exists only when run locally
+# (`npm start` → server.mjs). Deploy is manual, via the CLI, only when asked:
+#   netlify deploy --prod --dir=public
+[build]
+  publish = "public"
+  # no build step — plain static files
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "no-cache"

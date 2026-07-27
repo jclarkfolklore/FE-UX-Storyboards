@@ -1,195 +1,229 @@
-// Storyboard content model. Each FRAME is a node on the infinite canvas:
-//   { id, title, tag, x, y, w, desc, wire }  — `wire` is theme-agnostic wireframe HTML.
-// Each LINK is a flow arrow between frames: { from, to, label }.
-// Positions form a left→right flow with branches; edit freely (the canvas reads these).
+// Storyboard content model — grounded in the REAL app (routes /, /select, /stage,
+// /play, results, settings) and starting from the actual home screen.
+//
+// Layout is a GRID (col × lane) — app.js computes non-overlapping positions from
+// col widths + lane heights, so cards never collide.
+//   col  = left→right flow step
+//   lane = 0 top branch · 1 main spine · 2 bottom branch
+//
+// type: 'stage' = the fixed 16:9 game window (true proportion) · 'page' = the whole
+//   browser page (for things that live OUTSIDE the game window, e.g. the diag drawer).
+// isNew = added by the multiplayer work (vs a reused existing screen).
+//
+// SEMANTIC COLOR (grayscale base; color only organizes detail — see the Legend):
+//   .s-act network/nav primary action · .s-you you/host/local · .s-opp opponent/remote
+//   .s-wait waiting/pending/degraded · .s-err error/disconnect · .s-net network·data·metrics
 
-// ---- tiny wireframe helpers (theme-agnostic: grayscale, boxy, labelled) ----
-const box = (label, cls = "") => `<div class="wf-box ${cls}">${label}</div>`;
-const btn = (label, cls = "") => `<div class="wf-btn ${cls}">${label}</div>`;
-const input = (label) => `<div class="wf-input">${label}</div>`;
-const pill = (label, cls = "") => `<span class="wf-pill ${cls}">${label}</span>`;
-const avatar = (label) => `<div class="wf-avatar">${label}</div>`;
-const row = (...kids) => `<div class="wf-row">${kids.join("")}</div>`;
-const col = (...kids) => `<div class="wf-col">${kids.join("")}</div>`;
+const box = (t, cls = "") => `<div class="wf-box ${cls}">${t}</div>`;
+const btn = (t, cls = "") => `<div class="wf-btn ${cls}">${t}</div>`;
+const inp = (t, cls = "") => `<div class="wf-input ${cls}">${t}</div>`;
+const pill = (t, cls = "") => `<span class="wf-pill ${cls}">${t}</span>`;
+const av = (t, cls = "") => `<div class="wf-avatar ${cls}">${t}</div>`;
+const row = (...k) => `<div class="wf-row">${k.join("")}</div>`;
+const col = (...k) => `<div class="wf-col">${k.join("")}</div>`;
 const note = (t) => `<div class="wf-note">${t}</div>`;
-// A faithful 16:9 "game stage window" wrapper — the project invariant is that
-// every screen lives inside one fixed stage-sized window, so wireframes honor it.
-const stage = (title, body) => `<div class="wf-stage"><div class="wf-stage-bar">${title}</div><div class="wf-stage-body">${body}</div></div>`;
+const bars = () => `<div class="wf-hud"><span class="s-you"></span><span class="s-opp"></span></div>`;
+
+// A true-proportion game window: a 16:9 stage with a route bar (which real screen).
+const stage = (route, body) =>
+  `<div class="wf-stage"><div class="wf-stage-bar"><span class="wf-dot"></span><span class="wf-route">${route}</span></div>` +
+  `<div class="wf-stage-body">${body}</div></div>`;
+// The whole browser page: the 16:9 window sits inside; used for things OUTSIDE it.
+const page = (route, inner) =>
+  `<div class="wf-page"><div class="wf-page-bar"><span class="wf-dot"></span><span class="wf-route">${route}</span><span class="wf-page-note">whole page — element lives OUTSIDE the game window</span></div>` +
+  `<div class="wf-page-body">${inner}</div></div>`;
+const gameWindow = (body) => `<div class="wf-gamewin"><div class="wf-gamewin-tag">16:9 game window</div>${body}</div>`;
 
 export const FRAMES = [
+  // ── col 0 · HOME (the real current landing — start here) ─────
   {
-    id: "mode-select", title: "1 · Mode Select", tag: "entry",
-    x: 0, y: 300, w: 360,
-    desc: "The hub. Three distinct modes (the plan treats them as separate, flag-gated plug-ins). Online is the priority; vs Computer ships last. Local 2P already exists and must not regress.",
-    wire: stage("AI ARENA — PROMPT WARS", col(
-      note("choose how to play"),
-      btn("▶ Play Online &nbsp;— vs a friend or random", "primary"),
-      btn("Two Players — same keyboard"),
-      btn("vs Computer &nbsp;<span class='wf-dim'>(coming last)</span>"),
-      row(pill("leaderboard ▸"), pill("settings ▸")),
+    id: "home", title: "1 · Home", tag: "/ · EXISTING — unchanged", col: 0, lane: 1, w: 380, type: "stage", route: "/ · home",
+    desc: "The <b>actual current landing</b>, exactly as it is today — hero, tagline, blurb, ‘Choose fighters’ + ‘How to play’, and the three feature cards. <b>Multiplayer changes nothing on this screen.</b> The only difference downstream: ‘Choose fighters’ now leads to a Mode Select step (next) instead of straight to local character select.",
+    wire: stage("/ · home", col(
+      note("INTERNAL · AGENCY SIMULATOR"),
+      box("ROCK-EM-SOCK-EM", "hero"),
+      note("Prompt Wars"),
+      note("Two AI agents enter the arena. One leaves with its context window intact."),
+      row(btn("Choose fighters", "s-act"), pill("How to play")),
+      row(box("Local 2P", "grow"), box("Roster", "grow"), box("AI flavor", "grow")),
+    )),
+  },
+
+  // ── col 1 · MODE SELECT (new step, AFTER home) ───────────────
+  {
+    id: "mode-select", title: "2 · Mode Select", tag: "NEW — after home", col: 1, lane: 1, w: 340, type: "stage", route: "/play/mode", isNew: true,
+    desc: "New step inserted <b>after</b> the home screen. Today ‘Choose fighters’ goes straight to local select; multiplayer forks it here into the three modes. Local 2P is the existing flow; Online and vs-Computer are the branches. (Plan: 017 mode framework.)",
+    wire: stage("/play/mode", col(
+      note("how do you want to play?"),
+      btn("Two Players — same keyboard", "s-act"),
+      btn("▶ Play Online — friend or random", "s-act is-new"),
+      btn("vs Computer", "s-act"),
     )),
   },
   {
-    id: "identity", title: "2 · Name / Identity", tag: "first-run",
-    x: 470, y: 40, w: 340,
-    desc: "First time online (or when browser storage is empty). A durable player id is minted behind the scenes; the name is only the display label. No account. New players arriving by invite hit this same step.",
-    wire: stage("WHO ARE YOU?", col(
-      note("pick a name — no signup"),
-      input("your name…"),
-      btn("Continue", "primary"),
-      note("stored on this device · you can rename later without losing your record"),
+    id: "local2p", title: "2a · Local 2P", tag: "/select → /play · EXISTING", col: 1, lane: 0, w: 300, type: "stage", route: "/select",
+    desc: "The existing same-keyboard flow. Must not regress. Unchanged by multiplayer — just now reached via Mode Select.",
+    wire: stage("/select · local", col(note("two players · one keyboard"), row(box("P1", "s-you"), box("P2", "grow")), btn("Start"))),
+  },
+  {
+    id: "vs-cpu", title: "2b · vs Computer", tag: "EXISTING (built last)", col: 1, lane: 2, w: 300, type: "stage", route: "/play",
+    desc: "Single-player stand-in, built last. Same input path a remote player uses. Bot matches never touch the leaderboard.",
+    wire: stage("/play · vs cpu", col(note("practice vs a simple bot"), row(box("YOU", "s-you"), box("CPU", "grow")), box("not recorded to leaderboard", "s-net"))),
+  },
+
+  // ── col 2 · online entry ─────────────────────────────────────
+  {
+    id: "identity", title: "3 · Name / Identity", tag: "NEW · overlay", col: 2, lane: 0, w: 320, type: "stage", route: "/play/mode (overlay)", isNew: true,
+    desc: "First time online (or storage empty). A durable player id is minted; the name is only the display label. No account. New players from an invite hit this same step.",
+    wire: stage("name entry", col(note("pick a name — no signup"), inp("your name…", "s-you"), btn("Continue", "s-act"), note("stored on device · rename later keeps your record"))),
+  },
+  {
+    id: "create", title: "4 · Create & Invite", tag: "NEW", col: 2, lane: 1, w: 360, type: "stage", route: "/online", isNew: true,
+    desc: "‘Play Online’ → create a private match (server-issued id) and share the link, or automatch. Clear waiting state + cancel.",
+    wire: stage("/online · create", col(
+      row(av("YOU", "s-you"), box("signed in", "grow")),
+      note("send this to a friend"),
+      row(inp("…/m/AB12CD", "s-act"), btn("Copy", "s-act")),
+      box("◔ waiting for opponent…", "s-wait"),
+      row(pill("＋ Create"), pill("⚄ Automatch", "s-act")),
     )),
   },
   {
-    id: "online-home", title: "3 · Online Home", tag: "online",
-    x: 470, y: 300, w: 340,
-    desc: "The online entry point. Create a private match and share a link, or get matched with whoever's waiting.",
-    wire: stage("PLAY ONLINE", col(
-      row(avatar("YOU"), box("signed in as <b>PlayerName</b>", "grow")),
-      btn("＋ Create Match &nbsp;— get an invite link", "primary"),
-      btn("⚄ Find an Opponent &nbsp;— automatch"),
-      note("connection: ● good &nbsp;·&nbsp; relay: near you"),
+    id: "join", title: "4b · Join by Link", tag: "NEW", col: 2, lane: 2, w: 340, type: "stage", route: "/m/AB12CD", isNew: true,
+    desc: "The friend opens the link. Brand-new player → name → straight in. Handles link opened twice / by a third person.",
+    wire: stage("/m/AB12CD", col(note("PlayerName invited you"), inp("your name… (new here)", "s-opp"), btn("Join the Match", "s-act"), note("opened elsewhere already? we say so, not fail silently"))),
+  },
+
+  // ── col 3 · lobby / automatch ────────────────────────────────
+  {
+    id: "automatch", title: "4c · Automatch / Waiting", tag: "NEW", col: 3, lane: 2, w: 340, type: "stage", route: "/online · queue", isNew: true,
+    desc: "No link — pair with whoever’s waiting. A bounded queue (never lingers) + ‘something to do while waiting’ (bot practice).",
+    wire: stage("/online · finding", col(box("◍ searching…  0:12", "s-wait"), note("nobody yet — warm up?"), btn("Practice vs Computer", "s-act"), btn("Cancel", "s-err"))),
+  },
+  {
+    id: "lobby", title: "5 · Lobby (ready-up)", tag: "NEW · wraps select+stage", col: 3, lane: 1, w: 400, type: "stage", route: "/online · lobby", isNew: true,
+    desc: "Both players present. See each other (you=green, opponent=cyan), go through character + stage picks together, then ready up. Theme is per-player; the <b>stage is shared</b>. Mutual ready → fight.",
+    wire: stage("/online · lobby", col(
+      row(col(av("P1", "s-you"), box("You ✓", "s-you")), col(av("P2", "s-opp"), box("Rival …", "s-opp"))),
+      row(box("fighters ▸", "grow"), box("shared stage ▸", "grow")),
+      box("● connected · ~40ms", "s-net"),
+      btn("✓ Ready", "s-act"),
+    )),
+  },
+
+  // ── col 4–5 · reused pick screens ────────────────────────────
+  {
+    id: "select", title: "6 · Character Select", tag: "/select · EXISTING (online: 1 slot)", col: 4, lane: 1, w: 360, type: "stage", route: "/select",
+    desc: "The real character picker. Online reuses it for <b>one slot at a time</b> — you pick yours (green); the opponent’s pick streams in (cyan, remote). Existing screen, adapted.",
+    wire: stage("/select", col(
+      note("pick your fighter"),
+      row(box("QA Goblin", "s-you"), box("Scope Creep", "grow"), box("Deploy Demon", "grow")),
+      row(box("your pick ✓", "s-you"), box("opponent: picking…", "s-opp")),
+      btn("Confirm", "s-act"),
     )),
   },
   {
-    id: "vs-computer", title: "1b · vs Computer", tag: "solo",
-    x: 470, y: 560, w: 340,
-    desc: "Single-player stand-in, built last. Same input path a remote player uses (so 1P/2P share one code path). Bot matches never touch the leaderboard.",
-    wire: stage("vs COMPUTER", col(
-      note("practice against a simple bot"),
-      row(box("pick fighter", "grow"), box("pick stage", "grow")),
-      btn("Start", "primary"),
-      note("results here are NOT recorded to the leaderboard"),
-    )),
+    id: "stage-sel", title: "7 · Stage Select", tag: "/stage · EXISTING (shared)", col: 5, lane: 1, w: 340, type: "stage", route: "/stage",
+    desc: "The real stage picker (35 stages, grouped). Online: a <b>shared</b> pick — one stage for both. Writes into MatchConfig, then to the fight.",
+    wire: stage("/stage", col(note("pick the shared stage"), row(box("Server Room", "s-act"), box("Standup", "grow"), box("Prod", "grow")), box("both see this choice", "s-opp"), btn("To the fight", "s-act"))),
+  },
+
+  // ── col 6 · the fight + its overlays/page ────────────────────
+  {
+    id: "diagnostics", title: "8b · Diagnostics Drawer", tag: "NEW · 011.13 · OUTSIDE window", col: 6, lane: 0, w: 460, type: "page", route: "/play", isNew: true,
+    desc: "Opened from settings; a left-edge drawer on the <b>page</b>, outside the 16:9 game window so it never crosses the action. NOT theme-aware (fixed diagnostic chrome). Reads the one shared metrics source (011.15).",
+    wire: page("/play", `<div class="wf-page-split">
+      <div class="wf-drawer">
+        <div class="wf-drawer-h">DIAGNOSTICS <span class="wf-dim">(not themed)</span></div>
+        ${row(box("RTT p50/p95", "k"), box("41 / 88 ms", "v s-net"))}
+        ${row(box("felt lag", "k"), box("5.1 frames", "v s-net"))}
+        ${row(box("fps / throttle", "k"), box("60 · ok", "v s-net"))}
+        ${row(box("storage tier", "k"), box("sqlite-local", "v s-net"))}
+        ${row(box("build", "k"), box("1f720c4", "v s-net"))}
+      </div>
+      ${gameWindow(`<div class="wf-mini-arena">${bars()}${note("the fight — unobstructed")}</div>`)}
+    </div>`),
   },
   {
-    id: "create-invite", title: "4 · Create & Invite", tag: "online",
-    x: 940, y: 120, w: 360,
-    desc: "Match created (server-issued id). Share the link; the frame waits for the friend to arrive, with a clear 'waiting' state and a way to cancel.",
-    wire: stage("MATCH CREATED", col(
-      note("send this to your friend"),
-      row(input("https://…/m/AB12CD"), btn("Copy")),
-      box("◔ waiting for opponent to join…", "waiting"),
-      row(btn("Cancel"), pill("expires in ~10 min")),
-    )),
-  },
-  {
-    id: "join-link", title: "4b · Join by Link", tag: "online",
-    x: 940, y: 420, w: 360,
-    desc: "The friend opens the link. Brand-new player → name entry → straight into the lobby. No signup. Handles link opened twice / by a third person per spec.",
-    wire: stage("JOIN MATCH", col(
-      note("PlayerName invited you"),
-      input("your name…  <span class='wf-dim'>(new here)</span>"),
-      btn("Join the Match", "primary"),
-      note("opened already elsewhere? we'll tell you, not fail silently"),
-    )),
-  },
-  {
-    id: "automatch", title: "4c · Automatch / Waiting", tag: "online",
-    x: 940, y: 700, w: 360,
-    desc: "No link — pair with whoever's waiting. A queue that never lingers forever (bounded wait), and 'something to do while waiting' (e.g. bot practice) so the wait isn't dead air.",
-    wire: stage("FINDING AN OPPONENT", col(
-      box("◍ searching… &nbsp; 0:12", "waiting"),
-      note("nobody yet — want to warm up?"),
-      btn("Practice vs Computer while you wait"),
-      btn("Cancel", ""),
-    )),
-  },
-  {
-    id: "lobby", title: "5 · Lobby", tag: "online",
-    x: 1420, y: 300, w: 420,
-    desc: "Both players present. See each other, pick fighters, pick the shared stage, ready up. Theme is per-player (each sees their own); the STAGE is shared. Mutual 'ready' starts the fight.",
-    wire: stage("LOBBY", col(
-      row(col(avatar("P1"), box("You — <b>ready</b>", "ok")), col(avatar("P2"), box("Rival — picking…", "wait"))),
-      row(box("your fighter ▸", "grow"), box("shared stage ▸", "grow")),
-      note("● connected to opponent · ~40ms"),
-      btn("✓ Ready", "primary"),
-    )),
-  },
-  {
-    id: "fight", title: "6 · The Fight", tag: "match",
-    x: 1960, y: 300, w: 440,
-    desc: "The match. The stage window is the fight; a small always-on connection-quality chip sits in a corner; the diagnostics drawer lives on the LEFT edge (collapsed to a rail so it never crosses the action). Host-authoritative: the host sims, the guest renders + predicts its own character.",
-    wire: stage("● FIGHT — round 1", `<div class="wf-fight">
-        <div class="wf-diag-rail" title="diagnostics drawer (collapsed)">⋮<br>DIAG</div>
-        <div class="wf-arena">${row(avatar("P1"), box("VS", "vs"), avatar("P2"))}<div class="wf-hp"><span></span></div>${note("HP bars · timer · combo")}</div>
-        <div class="wf-conn-chip">● 41ms</div>
+    id: "fight", title: "8 · The Fight", tag: "/play · EXISTING + NEW overlays", col: 6, lane: 1, w: 440, type: "stage", route: "/play",
+    desc: "The real fight: Phaser canvas (fighters + stage bg) with the React FightHUD (health / confidence / special bars, announcer, round). Multiplayer adds a small <b>connection chip</b> + the left-edge <b>diagnostics rail</b>. Host-authoritative: host sims, guest renders + predicts its own character.",
+    wire: stage("/play", `<div class="wf-fight">
+        <div class="wf-diag-rail s-net" title="diagnostics (collapsed)">DIAG</div>
+        <div class="wf-arena">${bars()}${row(av("P1", "s-you"), box("VS", "vs"), av("P2", "s-opp"))}${note("announcer · round 1 · timer")}</div>
+        <div class="wf-conn-chip s-net">● 41ms</div>
       </div>`),
   },
   {
-    id: "diagnostics", title: "6b · Diagnostics Drawer", tag: "match · 011.13",
-    x: 1960, y: -140, w: 420,
-    desc: "Opened from settings; a left-edge drawer that persists across views and never blocks the fight. NOT theme-aware (fixed diagnostic chrome). Reads the ONE shared metrics source (011.15): RTT vs felt lag (separated), fps/throttle, storage tier, version.",
-    wire: `<div class="wf-drawer">
-      <div class="wf-drawer-h">DIAGNOSTICS &nbsp;<span class='wf-dim'>(diagnostic — not themed)</span></div>
-      ${row(box("link", "k"), box("● open", "v"))}
-      ${row(box("peer", "k"), box("● present", "v"))}
-      ${row(box("RTT p50/p95", "k"), box("41 / 88 ms", "v"))}
-      ${row(box("felt lag", "k"), box("5.1 frames", "v"))}
-      ${row(box("fps / throttle", "k"), box("60 · ok", "v"))}
-      ${row(box("storage tier", "k"), box("sqlite-local", "v"))}
-      ${row(box("build", "k"), box("1f720c4", "v"))}
-      ${note("collapses to a hairline rail during play")}
-    </div>`,
-  },
-  {
-    id: "conn-states", title: "6c · Connection States", tag: "match · 011.8/011.9",
-    x: 1960, y: 720, w: 440,
-    desc: "Distinct, honestly-triggered states — 'opponent unstable' (RTT/heartbeat thresholds) is clearly different from 'opponent left' (socket closed / reconnect window elapsed). The host stalling freezes both, so the guest must detect it independently.",
+    id: "conn", title: "8c · Connection States", tag: "NEW · 011.8/011.9", col: 6, lane: 2, w: 380, type: "stage", route: "/play (overlays)", isNew: true,
+    desc: "Distinct, honestly-triggered states. ‘Unstable’ (RTT/heartbeat thresholds, amber) is clearly different from ‘left’ (socket closed / window elapsed, red). Host stalling freezes both → guest detects it independently.",
     wire: col(
-      stage("⚠ OPPONENT UNSTABLE", note("their connection is struggling — holding the fight…")),
-      stage("⤺ RECONNECTING…", note("you dropped — trying to rejoin (0:06 left)")),
-      stage("✕ OPPONENT LEFT", note("they didn't come back → recorded as a forfeit win")),
+      box("⚠ Opponent unstable — holding…", "s-wait"),
+      box("⤺ Reconnecting… 0:06 left", "s-wait"),
+      box("✕ Opponent left → forfeit win", "s-err"),
     ),
   },
+
+  // ── col 7 · result / rematch ─────────────────────────────────
   {
-    id: "result", title: "7 · Result", tag: "match",
-    x: 2520, y: 300, w: 380,
-    desc: "One honest result, recorded once against the server-issued match id. Win / loss / forfeit shown distinctly. Offers a rematch without a new link.",
-    wire: stage("YOU WIN!", col(
-      row(avatar("P1"), box("★ Winner", "ok"), avatar("P2")),
-      note("recorded to the leaderboard · match #AB12CD"),
-      row(btn("↻ Rematch", "primary"), btn("Leaderboard")),
-      btn("Leave"),
-    )),
+    id: "result", title: "9 · Result", tag: "results · EXISTING (minimal)", col: 7, lane: 1, w: 340, type: "stage", route: "/play · result",
+    desc: "The minimal results screen (winner + rematch + return). One honest result recorded once against the server match id. Win/loss/forfeit shown distinctly.",
+    wire: stage("result", col(box("YOU WIN!", "hero s-you"), box("recorded · match #AB12CD", "s-net"), row(btn("↻ Rematch", "s-act"), btn("Leaderboard", "s-act")), btn("Leave"))),
   },
   {
-    id: "rematch", title: "8 · Rematch", tag: "online",
-    x: 3020, y: 60, w: 340,
-    desc: "Run it back with mutual agreement — the lobby survives match end, no new link exchanged. Loops back to the lobby/fight.",
-    wire: stage("REMATCH?", col(
-      row(box("You — ✓ ready", "ok"), box("Rival — waiting…", "wait")),
-      note("both agree → straight back into the fight"),
-      btn("✓ Rematch", "primary"),
-    )),
+    id: "rematch", title: "10 · Rematch", tag: "NEW", col: 7, lane: 0, w: 320, type: "stage", route: "/online · lobby", isNew: true,
+    desc: "Run it back with mutual agreement — the lobby survives match end, no new link. Loops back to the fight.",
+    wire: stage("rematch", col(row(box("You ✓", "s-you"), box("Rival …", "s-opp")), note("both agree → back to the fight"), btn("✓ Rematch", "s-act"))),
   },
+
+  // ── col 8 · leaderboard ──────────────────────────────────────
   {
-    id: "leaderboard", title: "9 · Leaderboard", tag: "015 + 009.9",
-    x: 3020, y: 420, w: 380,
-    desc: "Standings — online matches only, one record per player (survives renames). Crucially, it ALWAYS states which storage tier is live, accurately (durable DB / local SQLite / server-cache), so an ephemeral 'live session' board is never mistaken for a durable one.",
-    wire: stage("LEADERBOARD", col(
-      box("⛭ storage: <b>server-cache</b> — live session, resets on restart", "tier"),
-      col(row(box("1 · Rival", "grow"), pill("9–2")), row(box("2 · You", "grow"), pill("7–3")), row(box("3 · Guest42", "grow"), pill("1–5"))),
-      note("online matches only · bot games excluded"),
+    id: "leaderboard", title: "11 · Leaderboard", tag: "NEW · 015 + 009.9", col: 8, lane: 1, w: 380, type: "stage", route: "/leaderboard", isNew: true,
+    desc: "Standings — online matches only, one record per player (survives renames). Always states, <b>accurately</b>, which storage tier is live (durable / sqlite / server-cache) so an ephemeral ‘live session’ board is never mistaken for durable.",
+    wire: stage("/leaderboard", col(
+      box("⛭ storage: server-cache — live session, resets on restart", "s-net"),
+      col(row(box("1 · Rival", "grow s-opp"), pill("9–2")), row(box("2 · You", "grow s-you"), pill("7–3")), row(box("3 · Guest42", "grow"), pill("1–5"))),
+      note("online only · bot games excluded"),
     )),
   },
 ];
 
 export const LINKS = [
-  { from: "mode-select", to: "online-home", label: "Play Online" },
-  { from: "mode-select", to: "vs-computer", label: "vs Computer" },
-  { from: "mode-select", to: "identity", label: "first time → name" },
-  { from: "identity", to: "online-home", label: "" },
-  { from: "online-home", to: "create-invite", label: "Create Match" },
-  { from: "online-home", to: "automatch", label: "Find Opponent" },
-  { from: "create-invite", to: "lobby", label: "friend joins" },
-  { from: "join-link", to: "lobby", label: "opponent opens link" },
+  { from: "home", to: "mode-select", label: "Choose fighters" },
+  { from: "mode-select", to: "local2p", label: "Local 2P" },
+  { from: "mode-select", to: "vs-cpu", label: "vs Computer" },
+  { from: "mode-select", to: "identity", label: "Play Online (first time)" },
+  { from: "mode-select", to: "create", label: "Play Online" },
+  { from: "identity", to: "create", label: "" },
+  { from: "create", to: "lobby", label: "friend joins" },
+  { from: "join", to: "lobby", label: "opens link" },
+  { from: "create", to: "automatch", label: "or automatch" },
   { from: "automatch", to: "lobby", label: "matched" },
-  { from: "lobby", to: "fight", label: "both ready" },
-  { from: "fight", to: "result", label: "KO / time" },
+  { from: "lobby", to: "select", label: "pick fighters" },
+  { from: "select", to: "stage-sel", label: "" },
+  { from: "stage-sel", to: "fight", label: "both ready" },
   { from: "fight", to: "diagnostics", label: "open diagnostics" },
-  { from: "fight", to: "conn-states", label: "network event" },
+  { from: "fight", to: "conn", label: "network event" },
+  { from: "fight", to: "result", label: "KO / time" },
   { from: "result", to: "rematch", label: "run it back" },
   { from: "result", to: "leaderboard", label: "recorded" },
-  { from: "rematch", to: "lobby", label: "again" },
+  { from: "rematch", to: "fight", label: "again" },
 ];
+
+// Legend / key — rendered by app.js.
+export const LEGEND = {
+  color: [
+    ["s-act", "Action / navigation", "primary buttons, links that move you forward"],
+    ["s-you", "You · host · local player", "your slot, your inputs, your health"],
+    ["s-opp", "Opponent · remote · guest", "the other player, streamed over the wire"],
+    ["s-wait", "Waiting · pending · degraded", "queuing, unstable connection, reconnecting"],
+    ["s-err", "Error · disconnect · forfeit", "dropped, left, cancelled"],
+    ["s-net", "Network · data · metrics", "RTT/felt lag, storage tier, recorded results, diagnostics"],
+  ],
+  marker: [
+    ["is-new", "NEW for multiplayer", "added by this work; unmarked cards are existing screens, reused"],
+  ],
+  frame: [
+    ["stage", "Game window (16:9)", "true-proportion fixed stage window a screen renders in"],
+    ["page", "Whole page", "used when an element (e.g. diagnostics drawer) lives OUTSIDE the game window"],
+  ],
+};
