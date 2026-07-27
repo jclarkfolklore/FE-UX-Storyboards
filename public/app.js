@@ -44,7 +44,7 @@ function renderThread(id) {
 
 // ---------------- render nodes ----------------
 const commentBlock = (id) => `<div class="wf-comments">
-    <button class="wf-comments-toggle">💬 comments <span class="count"></span><span class="chev">▸</span></button>
+    <button class="wf-comments-toggle">💬 Comments &amp; notes <span class="count"></span><span class="chev">▸</span></button>
     <div class="wf-comments-body"><div class="wf-thread" data-thread="${id}"></div>
       <textarea class="wf-ta" data-ta="${id}" placeholder="comment on this view…"></textarea>
       <div class="wf-comment-actions"><button class="wf-save" data-save="${id}">Save</button></div></div></div>`;
@@ -54,7 +54,7 @@ function renderNodes() {
     const el = document.createElement("div");
     el.className = "node" + (fr.isNew ? " new" : "");
     el.id = `node-${fr.id}`;
-    el.style.width = fr.w + "px";
+    el.style.width = Math.round(fr.w * 1.15) + "px"; // scale up so bumped text stays in-proportion
     el.innerHTML = `<div class="node-head"><span class="node-title">${fr.title}</span><span class="node-tag">${fr.tag}</span></div>
       <div class="node-wire">${fr.wire}</div><div class="node-desc">${fr.desc}</div>${COMMENTS ? commentBlock(fr.id) : ""}`;
     world.appendChild(el);
@@ -121,9 +121,9 @@ function drawEdges() {
 function renderLegend() {
   const el = document.getElementById("legend-body");
   const swatch = (cls) => `<div class="legend-swatch" style="border-color:var(--${cls});background:color-mix(in srgb, var(--${cls}) 12%, #fff)"></div>`;
-  const item = (sw, b, s) => `<div class="legend-item">${sw}<div><b>${b}</b><span>${s}</span></div></div>`;
+  const item = (sw, b, s, sem) => `<div class="legend-item"${sem ? ` data-sem="${sem}"` : ""}>${sw}<div><b>${b}</b><span>${s}</span></div></div>`;
   el.innerHTML =
-    `<div class="legend-group"><h4>Semantic color</h4>${LEGEND.color.map(([c, b, s]) => item(swatch(c), b, s)).join("")}</div>` +
+    `<div class="legend-group"><h4>Semantic color <span style="text-transform:none;letter-spacing:0">— hover to glow</span></h4>${LEGEND.color.map(([c, b, s]) => item(swatch(c), b, s, c)).join("")}</div>` +
     `<div class="legend-group"><h4>Markers</h4>${item(`<div class="legend-swatch mark-new"></div>`, "NEW for multiplayer", "added by this work; unmarked = existing screen, reused")}</div>` +
     `<div class="legend-group"><h4>Frame type</h4>${item(`<div class="legend-swatch frame-stage"></div>`, "Game window (16:9)", "true-proportion fixed stage a screen renders in")}${item(`<div class="legend-swatch frame-page"></div>`, "Whole page", "element lives OUTSIDE the game window (e.g. diagnostics drawer)")}</div>` +
     `<div class="legend-group"><h4>Reading the map</h4><div class="legend-item"><div><span>Arrows = flow transitions. Top lane = branches, middle = the online happy path, bottom = alternate/error paths.</span></div></div></div>`;
@@ -132,7 +132,12 @@ function renderLegend() {
 // ---------------- pan / zoom ----------------
 let tx = 60, ty = 40, k = 0.7;
 const pctEl = () => document.getElementById("zoompct");
-function apply() { world.style.transform = `translate(${tx}px,${ty}px) scale(${k})`; if (pctEl()) pctEl().textContent = Math.round(k * 100) + "%"; }
+function apply() {
+  world.style.transform = `translate(${tx}px,${ty}px) scale(${k})`;
+  // keep the NEW badge a constant size regardless of zoom (counter-scale, clamped)
+  document.documentElement.style.setProperty("--inv", Math.min(2.8, Math.max(1, 1 / k)));
+  if (pctEl()) pctEl().textContent = Math.round(k * 100) + "%";
+}
 function fit() {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const f of FRAMES) { const n = document.getElementById(`node-${f.id}`); minX = Math.min(minX, n.offsetLeft); minY = Math.min(minY, n.offsetTop); maxX = Math.max(maxX, n.offsetLeft + n.offsetWidth); maxY = Math.max(maxY, n.offsetTop + n.offsetHeight); }
@@ -151,69 +156,122 @@ viewport.addEventListener("wheel", (e) => {
   k = Math.min(2.5, Math.max(0.12, k * f)); tx = mx - wx * k; ty = my - wy * k; apply();
 }, { passive: false });
 let pan = false, sx = 0, sy = 0;
-viewport.addEventListener("mousedown", (e) => { if (e.target.closest(".node")) return; pan = true; sx = e.clientX - tx; sy = e.clientY - ty; viewport.classList.add("grabbing"); });
-window.addEventListener("mousemove", (e) => { if (!pan) return; tx = e.clientX - sx; ty = e.clientY - sy; apply(); });
-window.addEventListener("mouseup", () => { pan = false; viewport.classList.remove("grabbing"); });
+function updateMarquee(e) {
+  const vp = viewport.getBoundingClientRect(), x = e.clientX - vp.left, y = e.clientY - vp.top, d = document.getElementById("marquee");
+  if (!d || !marq) return;
+  d.style.left = Math.min(marq.x0, x) + "px"; d.style.top = Math.min(marq.y0, y) + "px";
+  d.style.width = Math.abs(x - marq.x0) + "px"; d.style.height = Math.abs(y - marq.y0) + "px";
+}
+viewport.addEventListener("mousedown", (e) => {
+  if (e.target.closest(".node, #sel-bar, #tool-fabs, .panel, #menu-fab")) return;
+  const vp = viewport.getBoundingClientRect();
+  if (document.body.classList.contains("marquee-mode")) {
+    marq = { x0: e.clientX - vp.left, y0: e.clientY - vp.top };
+    const d = document.createElement("div"); d.id = "marquee"; viewport.appendChild(d); updateMarquee(e); return;
+  }
+  pan = true; sx = e.clientX - tx; sy = e.clientY - ty; viewport.classList.add("grabbing");
+});
+window.addEventListener("mousemove", (e) => { if (marq) return updateMarquee(e); if (!pan) return; tx = e.clientX - sx; ty = e.clientY - sy; apply(); });
+window.addEventListener("mouseup", (e) => {
+  if (marq) { const vp = viewport.getBoundingClientRect(); selectInRect(marq.x0, marq.y0, e.clientX - vp.left, e.clientY - vp.top); document.getElementById("marquee")?.remove(); marq = null; return; }
+  pan = false; viewport.classList.remove("grabbing");
+});
 
-// ---------------- multi-frame selection + a comment on the whole selection ----------------
+// ---------------- selection + one always-present notes bar ----------------
+// The bar targets the SELECTION when frames are selected, else the WHOLE BOARD
+// (so a general note doesn't require opening a separate panel).
 const selected = new Set();
-const selKey = () => "sel:" + [...selected].sort().join("+");
-function clearSel() { selected.forEach((id) => document.getElementById(`node-${id}`)?.classList.remove("selected")); selected.clear(); renderSelBar(); }
-function renderSelBar() {
+const notesTarget = () => (selected.size ? "sel:" + [...selected].sort().join("+") : "__overall");
+function toggleSel(node) {
+  const id = node.id.replace("node-", "");
+  selected.has(id) ? (selected.delete(id), node.classList.remove("selected")) : (selected.add(id), node.classList.add("selected"));
+  renderNotesBar();
+}
+function clearSel() { selected.forEach((id) => document.getElementById(`node-${id}`)?.classList.remove("selected")); selected.clear(); renderNotesBar(); }
+function renderNotesBar() {
+  if (!COMMENTS) return;
   let bar = document.getElementById("sel-bar");
-  if (!selected.size || !COMMENTS) { bar?.remove(); return; }
   if (!bar) { bar = document.createElement("div"); bar.id = "sel-bar"; document.body.appendChild(bar); }
-  const ids = [...selected].sort(), fid = selKey();
-  bar.innerHTML = `<div class="sel-bar-h">💬 one comment on <b>${ids.length}</b> selected frame${ids.length > 1 ? "s" : ""}
-      <span class="sel-ids">${ids.join(" · ")}</span><button id="sel-clear">clear selection</button></div>
+  const has = selected.size > 0, fid = notesTarget(), ids = [...selected].sort();
+  bar.classList.toggle("for-sel", has);
+  bar.innerHTML = `<div class="sel-bar-h">💬 ${has ? `one comment on <b>${ids.length}</b> selected frame${ids.length > 1 ? "s" : ""}` : "comment on the <b>whole board</b>"}
+      <span class="sel-ids">${has ? ids.join(" · ") : "nothing selected — posts a general board note"}</span></div>
     <div class="wf-thread" data-thread="${fid}"></div>
-    <textarea class="wf-ta" id="sel-ta" placeholder="one comment for all selected frames…"></textarea>
+    <textarea class="wf-ta" id="sel-ta" placeholder="${has ? "one comment for all selected frames…" : "a note on the whole board…"}"></textarea>
     <div class="wf-comment-actions"><button class="wf-save" id="sel-save">Save</button></div>`;
   renderThread(fid);
 }
 
 // ---------------- events ----------------
 document.addEventListener("click", (e) => {
+  // SELECT MODE: click anywhere on a card toggles its selection
+  if (COMMENTS && document.body.classList.contains("select-mode")) {
+    const n = e.target.closest(".node"); if (n) return toggleSel(n);
+  }
   const save = e.target.closest("[data-save]");
   if (save) { const id = save.dataset.save, ta = document.querySelector(`[data-ta="${id}"]`); if (ta?.value.trim()) { saveComment(id, ta.value); ta.value = ""; } return; }
-  if (e.target.id === "sel-save") { const ta = document.getElementById("sel-ta"); if (ta?.value.trim()) { saveComment(selKey(), ta.value); ta.value = ""; } return; }
-  if (e.target.id === "sel-clear") return clearSel();
+  if (e.target.id === "sel-save") { const ta = document.getElementById("sel-ta"); if (ta?.value.trim()) { saveComment(notesTarget(), ta.value); ta.value = ""; } return; }
   const rec = e.target.closest("[data-recover]"); if (rec) return recoverComment(rec.dataset.recover);
   const tog = e.target.closest(".wf-comments-toggle"); if (tog) return tog.closest(".wf-comments").classList.toggle("open");
   if (!COMMENTS) return;
-  // click a card's HEADER toggles selection (leaves text/buttons alone)
+  // NORMAL mode: click a card's HEADER selects (leaves text/buttons alone)
   const head = e.target.closest(".node-head");
-  if (head && !e.target.closest("button,a,textarea,input")) {
-    const node = head.closest(".node"), id = node.id.replace("node-", "");
-    selected.has(id) ? (selected.delete(id), node.classList.remove("selected")) : (selected.add(id), node.classList.add("selected"));
-    return renderSelBar();
-  }
-  // click on empty canvas clears the selection
+  if (head && !e.target.closest("button,a,textarea,input")) return toggleSel(head.closest(".node"));
   if (!e.target.closest(".node, #sel-bar, .panel, .topbar")) clearSel();
 });
 document.getElementById("zoom-in").onclick = () => { k = Math.min(2.5, k * 1.2); apply(); };
 document.getElementById("zoom-out").onclick = () => { k = Math.max(0.12, k / 1.2); apply(); };
 document.getElementById("fit").onclick = fit;
-document.getElementById("overall-toggle").onclick = (e) => { e.currentTarget.classList.toggle("on"); document.getElementById("overall").classList.toggle("open"); };
-document.getElementById("legend-toggle").onclick = (e) => { e.currentTarget.classList.toggle("on"); document.getElementById("legend").classList.toggle("open"); };
+// Key: hamburger toggle (closed by default), persists across refreshes
+document.getElementById("menu-fab").onclick = (e) => {
+  const open = document.getElementById("legend").classList.toggle("open");
+  e.currentTarget.classList.toggle("on", open);
+  localStorage.setItem("ux-legend", open ? "open" : "closed");
+};
+// hover a Key color row → matching wireframe elements glow
+const lb = document.getElementById("legend-body");
+lb.addEventListener("mouseover", (e) => { const it = e.target.closest("[data-sem]"); if (it) document.querySelectorAll(`.node .${it.dataset.sem}`).forEach((el) => el.classList.add("glow")); });
+lb.addEventListener("mouseout", (e) => { if (e.target.closest("[data-sem]")) document.querySelectorAll(".glow").forEach((el) => el.classList.remove("glow")); });
+// select FABs (click-to-select mode · drag-a-box mode · clear)
+document.getElementById("fab-select").onclick = (e) => {
+  const on = document.body.classList.toggle("select-mode"); e.currentTarget.classList.toggle("on", on);
+  if (on) { document.body.classList.remove("marquee-mode"); document.getElementById("fab-marquee").classList.remove("on"); }
+};
+document.getElementById("fab-marquee").onclick = (e) => {
+  const on = document.body.classList.toggle("marquee-mode"); e.currentTarget.classList.toggle("on", on);
+  if (on) { document.body.classList.remove("select-mode"); document.getElementById("fab-select").classList.remove("on"); }
+};
+document.getElementById("fab-clear").onclick = clearSel;
+
+// ---------------- marquee (drag a box to select cards in an area) ----------------
+let marq = null;
+function selectInRect(x0, y0, x1, y1) {
+  const vp = viewport.getBoundingClientRect();
+  const L = Math.min(x0, x1), R = Math.max(x0, x1), T = Math.min(y0, y1), B = Math.max(y0, y1);
+  for (const f of FRAMES) {
+    const n = document.getElementById(`node-${f.id}`), b = n.getBoundingClientRect();
+    const nx = b.left - vp.left, ny = b.top - vp.top;
+    const hit = nx < R && nx + b.width > L && ny < B && ny + b.height > T;
+    if (hit && !selected.has(f.id)) { selected.add(f.id); n.classList.add("selected"); }
+  }
+  renderNotesBar();
+}
 
 // ---------------- boot ----------------
 (async function boot() {
   await detectAndLoad();
-  document.getElementById("mode-badge").textContent = COMMENTS ? "feedback loop on · comments.db · click a card header to select" : "view only";
-  if (!COMMENTS) { // view-only: strip the notes/comments affordances entirely
-    document.getElementById("overall-toggle")?.remove();
-    document.getElementById("overall")?.remove();
-  }
+  document.getElementById("mode-badge").textContent = COMMENTS ? "feedback loop on · comments.db" : "view only";
+  if (!COMMENTS) document.getElementById("select-toggle")?.remove(); // no selection/notes in view-only
   renderNodes();
   renderLegend();
-  document.querySelector("#overall .wf-thread")?.setAttribute("data-thread", "__overall");
+  // Key: restore persisted open/closed state (default CLOSED — the ☰ hamburger opens it)
+  const legendOpen = localStorage.getItem("ux-legend") === "open";
+  document.getElementById("legend").classList.toggle("open", legendOpen);
+  document.getElementById("menu-fab").classList.toggle("on", legendOpen);
   requestAnimationFrame(() => {
     layout();
     drawEdges();
-    if (COMMENTS) { for (const f of FRAMES) renderThread(f.id); renderThread("__overall"); }
+    if (COMMENTS) { for (const f of FRAMES) renderThread(f.id); renderNotesBar(); }
     fit();
-    document.getElementById("legend").classList.add("open");
-    document.getElementById("legend-toggle").classList.add("on");
   });
 })();

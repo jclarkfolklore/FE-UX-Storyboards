@@ -23,6 +23,15 @@ const row = (...k) => `<div class="wf-row">${k.join("")}</div>`;
 const col = (...k) => `<div class="wf-col">${k.join("")}</div>`;
 const note = (t) => `<div class="wf-note">${t}</div>`;
 const bars = () => `<div class="wf-hud"><span class="s-you"></span><span class="s-opp"></span></div>`;
+const grid = (cols, cells) => `<div class="wf-grid" style="grid-template-columns:repeat(${cols},1fr)">${cells.join("")}</div>`;
+const cell = (t = "", cls = "") => `<div class="wf-cell ${cls}">${t}</div>`;
+// A faithful top HUD bar (announcer + P1 left / P2 right, each name+health+conf+special).
+const fightHud = () => `<div class="wf-fhud">
+  <div class="wf-fhud-ann">announcer line</div>
+  <div class="wf-fhud-row">
+    <div class="wf-fhud-side s-you"><b>P1</b><span class="wf-bar"></span><div class="wf-fhud-sub"><span class="wf-bar sm"></span><span class="wf-bar sm"></span></div></div>
+    <div class="wf-fhud-side s-opp right"><b>P2</b><span class="wf-bar"></span><div class="wf-fhud-sub"><span class="wf-bar sm"></span><span class="wf-bar sm"></span></div></div>
+  </div></div>`;
 
 // A true-proportion game window: a 16:9 stage with a route bar (which real screen).
 const stage = (route, body) =>
@@ -115,17 +124,24 @@ export const FRAMES = [
   {
     id: "select", title: "6 · Character Select", tag: "/select · EXISTING (online: 1 slot)", col: 4, lane: 1, w: 360, type: "stage", route: "/select",
     desc: "The real character picker. Online reuses it for <b>one slot at a time</b> — you pick yours (green); the opponent’s pick streams in (cyan, remote). Existing screen, adapted.",
-    wire: stage("/select", col(
-      note("pick your fighter"),
-      row(box("QA Goblin", "s-you"), box("Scope Creep", "grow"), box("Deploy Demon", "grow")),
-      row(box("your pick ✓", "s-you"), box("opponent: picking…", "s-opp")),
-      btn("Confirm", "s-act"),
-    )),
+    wire: stage("/select", `<div class="wf-screen">
+      <div class="wf-screen-h">Select fighters</div>
+      ${row(pill("P1 · you", "s-you"), pill("P2 · rival", "s-opp"))}
+      ${grid(3, [cell("QA Goblin", "s-you"), cell("Scope Creep"), cell("Deploy Demon"), cell("Refactor"), cell("Merge Bot"), cell("Null Ptr")])}
+      ${row(box("your pick ✓", "s-you grow"), box("opponent: picking…", "s-opp"), btn("Confirm", "s-act"))}
+    </div>`),
   },
   {
     id: "stage-sel", title: "7 · Stage Select", tag: "/stage · EXISTING (shared)", col: 5, lane: 1, w: 340, type: "stage", route: "/stage",
     desc: "The real stage picker (35 stages, grouped). Online: a <b>shared</b> pick — one stage for both. Writes into MatchConfig, then to the fight.",
-    wire: stage("/stage", col(note("pick the shared stage"), row(box("Server Room", "s-act"), box("Standup", "grow"), box("Prod", "grow")), box("both see this choice", "s-opp"), btn("To the fight", "s-act"))),
+    wire: stage("/stage", `<div class="wf-screen">
+      <div class="wf-screen-h">Choose Your Stage <span class="wf-dim">· shared</span></div>
+      <div class="wf-group-label">infra</div>
+      ${grid(6, [cell("", "s-act"), cell(), cell(), cell(), cell(), cell()])}
+      <div class="wf-group-label">meetings</div>
+      ${grid(6, [cell(), cell(), cell(), cell(), cell(), cell()])}
+      ${row(box("both see this choice", "s-opp grow"), btn("To the fight", "s-act"))}
+    </div>`),
   },
 
   // ── col 6 · the fight + its overlays/page ────────────────────
@@ -149,8 +165,11 @@ export const FRAMES = [
     desc: "The real fight: Phaser canvas (fighters + stage bg) with the React FightHUD (health / confidence / special bars, announcer, round). Multiplayer adds a small <b>connection chip</b> + the left-edge <b>diagnostics rail</b>. Host-authoritative: host sims, guest renders + predicts its own character.",
     wire: stage("/play", `<div class="wf-fight">
         <div class="wf-diag-rail s-net" title="diagnostics (collapsed)">DIAG</div>
-        <div class="wf-arena">${bars()}${row(av("P1", "s-you"), box("VS", "vs"), av("P2", "s-opp"))}${note("announcer · round 1 · timer")}</div>
-        <div class="wf-conn-chip s-net">● 41ms</div>
+        <div class="wf-arena-full">
+          ${fightHud()}
+          <div class="wf-fighters">${av("P1", "s-you")}${box("VS", "vs")}${av("P2", "s-opp")}</div>
+          <div class="wf-conn-chip s-net">● 41ms</div>
+        </div>
       </div>`),
   },
   {
