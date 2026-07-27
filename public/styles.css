@@ -15,6 +15,7 @@
   --glass-brd: rgba(255, 255, 255, 0.7);
   --glass-shadow: 0 10px 34px rgba(20, 30, 55, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.6);
   --blur: saturate(175%) blur(22px);
+  --ease: cubic-bezier(.22, .61, .36, 1);
   /* semantic hues */
   --s-act: #2f6fd6; --s-you: #2f9e5b; --s-opp: #128a97;
   --s-wait: #c07d10; --s-err: #d24141; --s-net: #7458c9; --s-new: #c24fac;
@@ -189,8 +190,8 @@ body.marquee-mode .viewport { cursor: crosshair; }
 .wf-comments-toggle .count:empty { display: none; }
 .wf-comments-toggle .chev { float: right; transition: transform .12s; }
 .wf-comments.open .wf-comments-toggle .chev { transform: rotate(90deg); }
-.wf-comments-body { display: none; padding: 11px 15px; }
-.wf-comments.open .wf-comments-body { display: block; }
+.wf-comments-body { max-height: 0; opacity: 0; overflow: hidden; padding: 0 15px; transition: max-height .3s var(--ease), opacity .22s ease, padding .24s var(--ease); }
+.wf-comments.open .wf-comments-body { max-height: 640px; opacity: 1; padding: 11px 15px; }
 .wf-thread { display: flex; flex-direction: column; gap: 6px; margin-bottom: 9px; }
 .wf-entry { font-size: 13px; background: #fffbe8; border: 1px solid #ece6bf; border-radius: 6px; padding: 7px 9px; white-space: pre-wrap; }
 .wf-entry.wf-empty { background: none; border: 1px dashed var(--line); color: var(--faint); font-style: italic; }
@@ -279,3 +280,45 @@ body.view-only .is-new { outline: none; }
   background: var(--s-err); color: #fff; font: 700 12px var(--mono); letter-spacing: .1em;
   padding: 6px 18px; border-radius: 0 0 13px 13px; box-shadow: 0 3px 14px rgba(210, 65, 65, .4); }
 #viewonly-flag[hidden] { display: none; }
+
+/* ============================ motion & polish ============================ */
+/* staggered card entrance (delay set inline per node) */
+@keyframes nodeIn { from { opacity: 0; transform: translateY(12px) scale(.984); } to { opacity: 1; transform: none; } }
+.node.enter { animation: nodeIn .5s var(--ease) both; }
+/* smooth glow/lift on the cards (selection fades in; hover deepens the shadow) */
+.node { transition: box-shadow .22s var(--ease), border-color .18s ease; }
+.node:hover { box-shadow: 0 10px 30px rgba(20, 30, 55, .19); }
+.node.selected:hover { box-shadow: 0 0 0 3px #f4c400, 0 0 32px 8px rgba(244, 196, 0, .58), 0 10px 30px rgba(20, 30, 55, .19); }
+.node-head, .node-head:hover { transition: background .15s ease; }
+
+/* modal entrance */
+@keyframes modalFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modalPop { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+.modal:not([hidden]) { animation: modalFade .2s ease; }
+.modal:not([hidden]) .modal-card { animation: modalPop .34s var(--ease); }
+
+/* Key panel + tools ease */
+.panel { transition: transform .26s var(--ease); }
+.tbtn, #nav-menu, #info-btn, .fab, .wf-save, .modal-close { transition: transform .12s var(--ease), background .15s ease, box-shadow .18s ease, filter .12s ease, opacity .18s ease; }
+.tbtn:active, .fab:active, .wf-save:active, #nav-menu:active { transform: translateY(1px) scale(.97); }
+.wf-save:hover { background: #2560c8; }
+.wf-comments-toggle .chev { transition: transform .18s var(--ease); }
+.wf-entry { animation: nodeIn .28s var(--ease) both; }
+
+/* armed Clear pulses gently to draw the eye */
+@keyframes armPulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(210, 65, 65, .55), 0 0 16px 3px rgba(210, 65, 65, .32), 0 6px 22px rgba(20, 30, 55, .26); }
+  50% { box-shadow: 0 0 0 2px rgba(210, 65, 65, .78), 0 0 26px 7px rgba(210, 65, 65, .5), 0 6px 22px rgba(20, 30, 55, .26); }
+}
+.fab.clear.armed { animation: armPulse 1.7s ease-in-out infinite; }
+
+/* refined scrollbars in panels/modal */
+.panel::-webkit-scrollbar, .modal-card::-webkit-scrollbar { width: 11px; }
+.panel::-webkit-scrollbar-thumb, .modal-card::-webkit-scrollbar-thumb { background: rgba(120, 130, 148, .38); border-radius: 8px; border: 3px solid transparent; background-clip: content-box; }
+.panel::-webkit-scrollbar-thumb:hover, .modal-card::-webkit-scrollbar-thumb:hover { background: rgba(120, 130, 148, .6); background-clip: content-box; }
+
+/* respect reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *, .node.enter, .fab.clear.armed { animation: none !important; }
+  .world { transition: none !important; }
+}

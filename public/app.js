@@ -53,15 +53,16 @@ const commentBlock = (id) => `<div class="wf-comments">
       <div class="wf-comment-actions"><button class="wf-save" data-save="${id}">Save</button></div></div></div>`;
 
 function renderNodes() {
-  for (const fr of FRAMES) {
+  FRAMES.forEach((fr, i) => {
     const el = document.createElement("div");
-    el.className = "node" + (fr.isNew ? " new" : "");
+    el.className = "node enter" + (fr.isNew ? " new" : "");
     el.id = `node-${fr.id}`;
     el.style.width = Math.round(fr.w * 1.15) + "px"; // scale up so bumped text stays in-proportion
+    el.style.animationDelay = i * 16 + "ms"; // gentle staggered entrance
     el.innerHTML = `<div class="node-head"><span class="node-title">${fr.title}</span><span class="node-tag">${fr.tag}</span></div>
       <div class="node-wire">${fr.wire}</div><div class="node-desc">${fr.desc}</div>${COMMENTS ? commentBlock(fr.id) : ""}`;
     world.appendChild(el);
-  }
+  });
 }
 
 // ---------------- grid auto-layout (col × lane → non-overlapping) ----------------
@@ -173,7 +174,15 @@ function zoomTo(newK) {
   const a = avail(), wx = (a.cx - tx) / k, wy = (a.cy - ty) / k;
   k = newK; tx = a.cx - wx * k; ty = a.cy - wy * k; apply();
 }
-viewport.addEventListener("wheel", (e) => { e.preventDefault(); zoomTo(k * (e.deltaY < 0 ? 1.08 : 1 / 1.08)); }, { passive: false });
+// Eased transition for discrete view changes (buttons); NOT during drag/wheel.
+let animTimer;
+function animateView(fn) {
+  world.style.transition = "transform .42s cubic-bezier(.22,.61,.36,1)";
+  fn();
+  clearTimeout(animTimer);
+  animTimer = setTimeout(() => (world.style.transition = ""), 450);
+}
+viewport.addEventListener("wheel", (e) => { e.preventDefault(); world.style.transition = ""; zoomTo(k * (e.deltaY < 0 ? 1.08 : 1 / 1.08)); }, { passive: false });
 
 // mode: 'pan' | 'zoom' (⌘/ctrl/alt + drag up-down) | 'marquee' (drag-select)
 let mode = null, sx = 0, sy = 0, lastY = 0, marq = null;
@@ -186,6 +195,7 @@ function updateMarquee(e) {
 }
 viewport.addEventListener("mousedown", (e) => {
   if (e.target.closest(".node, #sel-bar, #tool-fabs, .panel")) return;
+  world.style.transition = ""; // cancel any in-flight eased view change so dragging stays snappy
   const vp = viewport.getBoundingClientRect();
   if (document.body.classList.contains("marquee-mode")) {
     mode = "marquee"; marq = { x0: e.clientX - vp.left, y0: e.clientY - vp.top };
@@ -255,11 +265,11 @@ document.addEventListener("click", (e) => {
   if (!document.body.classList.contains("marquee-mode") && !document.body.classList.contains("select-mode")
     && !e.target.closest(".node, #sel-bar, #tool-fabs, .panel, .topbar")) clearSel();
 });
-document.getElementById("zoom-in").onclick = () => zoomTo(k * 1.2);
-document.getElementById("zoom-out").onclick = () => zoomTo(k / 1.2);
-document.getElementById("fit").onclick = fit;
-document.getElementById("center").onclick = center;
-document.getElementById("reset").onclick = reset;
+document.getElementById("zoom-in").onclick = () => animateView(() => zoomTo(k * 1.2));
+document.getElementById("zoom-out").onclick = () => animateView(() => zoomTo(k / 1.2));
+document.getElementById("fit").onclick = () => animateView(fit);
+document.getElementById("center").onclick = () => animateView(center);
+document.getElementById("reset").onclick = () => animateView(reset);
 // Info modal (design brief)
 const infoModal = document.getElementById("info-modal");
 document.getElementById("info-btn").onclick = () => (infoModal.hidden = false);
