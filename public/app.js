@@ -152,12 +152,15 @@ function contentBounds() {
   for (const f of FRAMES) { const n = document.getElementById(`node-${f.id}`); minX = Math.min(minX, n.offsetLeft); minY = Math.min(minY, n.offsetTop); maxX = Math.max(maxX, n.offsetLeft + n.offsetWidth); maxY = Math.max(maxY, n.offsetTop + n.offsetHeight); }
   return { minX, minY, maxX, maxY, cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, w: maxX - minX, h: maxY - minY };
 }
-// Usable viewport region — EXCLUDES the open Key panel so we never center/fit
-// behind it (users can still pan content behind the panel manually).
+// Usable viewport region — EXCLUDES the open Key panel (left) and the floating
+// notes bar (bottom) so Fit/Center/Reset never frame content behind them (users
+// can still pan content behind them manually).
 function avail() {
   const insetL = document.getElementById("legend")?.classList.contains("open") ? 340 : 0;
+  const bar = document.getElementById("sel-bar");
+  const insetB = bar ? bar.offsetHeight + 24 + 18 : 0; // bar height + its 24px bottom gap + margin
   const pad = 40, W = viewport.clientWidth, H = viewport.clientHeight;
-  const w = W - insetL - pad * 2, h = H - pad * 2;
+  const w = W - insetL - pad * 2, h = H - insetB - pad * 2;
   return { w, h, cx: insetL + pad + w / 2, cy: pad + h / 2 };
 }
 function fit() { const b = contentBounds(), a = avail(); k = Math.min(a.w / b.w, a.h / b.h, 1); tx = a.cx - b.cx * k; ty = a.cy - b.cy * k; apply(); }
