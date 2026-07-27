@@ -297,7 +297,7 @@ function selectInRect(x0, y0, x1, y1) {
 // ---------------- boot ----------------
 (async function boot() {
   await detectAndLoad();
-  document.getElementById("mode-badge").textContent = COMMENTS ? "feedback loop on · comments.db" : "view only";
+  document.getElementById("info-mode").textContent = COMMENTS ? "feedback loop on · comments.db (local)" : "view only · static build";
   if (!COMMENTS) { // deployed/static: view-only — no comment tools, and NEW signifiers are irrelevant to the team view
     document.body.classList.add("view-only");
     document.getElementById("tool-fabs")?.remove();

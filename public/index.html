@@ -9,16 +9,21 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <!-- hamburger: left of the nav bar, opens the Key side panel -->
+      <!-- key icon: opens the Key side panel -->
       <button id="nav-menu" title="show the Key / legend" aria-label="Open Key panel">
-        <svg viewBox="0 0 32 32" fill="currentColor"><path d="M4 6h24v2H4zM4 15h24v2H4zM4 24h24v2H4z"/></svg>
+        <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="21" cy="11" r="6" /><path d="M16.8 15.2 6 26M9 23l3 3M12 20l3 3" />
+        </svg>
       </button>
-      <div class="brand-txt">
-        <strong>Multiplayer UX — Flow Storyboards</strong>
-        <span class="sub">wireframes · theme-agnostic · design spike</span>
-        <span id="mode-badge" class="sub" style="font-family:var(--mono);font-size:11px"></span>
-      </div>
+      <strong>Multiplayer UX — Flow Storyboards</strong>
     </div>
+
+    <!-- centered, standout Info button -->
+    <button id="info-btn" title="what is this / why it matters">
+      <svg class="ic" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M16 2a14 14 0 1 0 14 14A14 14 0 0 0 16 2Zm0 26a12 12 0 1 1 12-12 12 12 0 0 1-12 12Z"/><path d="M15 14h2v8h-2z"/><circle cx="16" cy="10.5" r="1.25"/></svg>
+      What is this?
+    </button>
+
     <div class="tools">
       <button id="zoom-out" class="tbtn" title="zoom out">–</button>
       <span id="zoompct" class="zoompct">70%</span>
@@ -26,11 +31,6 @@
       <button id="fit" class="tbtn" title="scale to fit everything">Fit</button>
       <button id="center" class="tbtn" title="center the canvas (keeps zoom)">Center</button>
       <button id="reset" class="tbtn" title="reset view — center + fit">Reset</button>
-      <span class="sep"></span>
-      <button id="info-btn" class="tbtn" title="what is this / why it matters">
-        <svg class="ic" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M16 2a14 14 0 1 0 14 14A14 14 0 0 0 16 2Zm0 26a12 12 0 1 1 12-12 12 12 0 0 1-12 12Z"/><path d="M15 14h2v8h-2z"/><circle cx="16" cy="10.5" r="1.25"/></svg>
-        Info
-      </button>
     </div>
   </header>
 
@@ -97,6 +97,7 @@
         <li><b>One fixed window</b> — everything lives inside the game's fixed 16:9 stage window; theme is per-player and layered on later.</li>
       </ul>
       <p class="modal-foot">Read the map with the <b>Key</b> (top-left). Cards marked <b>NEW</b> are added by this work; unmarked screens already exist and are reused.</p>
+      <div class="modal-meta">wireframes · theme-agnostic · design spike · <span id="info-mode"></span></div>
     </div>
   </div>
 
