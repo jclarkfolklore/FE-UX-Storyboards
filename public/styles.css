@@ -162,6 +162,12 @@ body.marquee-mode .viewport { cursor: crosshair; }
 .wf-drawer-h { font: 11px var(--mono); color: #bcc; margin-bottom: 3px; }
 .wf-drawer .wf-box { background: #383641; border-color: #565261; color: #ddd; font-size: 12px; }
 .wf-drawer .wf-box.k { color: #9a96a8; min-width: 80px; }
+/* win-state modal floating over the (dimmed) game screen */
+.wf-modal-over { position: relative; flex: 1; display: flex; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+.wf-modal-over::before { content: ""; position: absolute; inset: 0; background: rgba(20, 26, 40, .3); z-index: 1; }
+.wf-behind { position: absolute; inset: 0; display: flex; gap: 12px; align-items: center; justify-content: center; opacity: .4; filter: grayscale(.5); }
+.wf-winmodal { position: relative; z-index: 2; margin: auto; min-width: 76%; background: #fff; border: 1px solid var(--line-strong);
+  border-radius: 11px; box-shadow: 0 12px 30px rgba(0, 0, 0, .34); padding: 13px; display: flex; flex-direction: column; gap: 8px; }
 
 /* ---- semantic color (organizing accents) ---- */
 .s-act { border-color: var(--s-act) !important; color: var(--s-act) !important; }

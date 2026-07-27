@@ -46,8 +46,8 @@ const gameWindow = (body) => `<div class="wf-gamewin"><div class="wf-gamewin-tag
 export const FRAMES = [
   // ── col 0 · HOME (the real current landing — start here) ─────
   {
-    id: "home", title: "1 · Home", tag: "/ · EXISTING — unchanged", col: 0, lane: 1, w: 380, type: "stage", route: "/ · home",
-    desc: "The <b>actual current landing</b>, exactly as it is today — hero, tagline, blurb, ‘Choose fighters’ + ‘How to play’, and the three feature cards. <b>Multiplayer changes nothing on this screen.</b> The only difference downstream: ‘Choose fighters’ now leads to a Mode Select step (next) instead of straight to local character select.",
+    id: "home", title: "1 · Home", tag: "/ · REQUIREMENT: fit, no scroll", col: 0, lane: 1, w: 380, type: "stage", route: "/ · home",
+    desc: "The landing screen — hero, tagline, blurb, primary CTA, feature cards. <b>Hard requirement (your note): it must fit entirely within the fixed 16:9 game window, with NO scrolling on first load</b> (today the page can scroll — that's out; everything is composed to one view). ‘Choose fighters’ leads to a new Mode Select step (next).",
     wire: stage("/ · home", col(
       note("INTERNAL · AGENCY SIMULATOR"),
       box("ROCK-EM-SOCK-EM", "hero"),
@@ -98,9 +98,14 @@ export const FRAMES = [
     )),
   },
   {
-    id: "join", title: "4b · Join by Link", tag: "NEW", col: 2, lane: 2, w: 340, type: "stage", route: "/m/AB12CD", isNew: true,
-    desc: "The friend opens the link. Brand-new player → name → straight in. Handles link opened twice / by a third person.",
-    wire: stage("/m/AB12CD", col(note("PlayerName invited you"), inp("your name… (new here)", "s-opp"), btn("Join the Match", "s-act"), note("opened elsewhere already? we say so, not fail silently"))),
+    id: "join", title: "4b · Join by Link", tag: "NEW · direct, no code", col: 2, lane: 2, w: 340, type: "stage", route: "/m/AB12CD", isNew: true,
+    desc: "Opening the invite link drops you <b>directly into the match that was set up — no code to enter</b> (the link IS the join, per your note). A returning player lands straight in the lobby; a brand-new player just adds a name, then they're in. Still handles a link opened twice / by a third person.",
+    wire: stage("/m/AB12CD", col(
+      box("Joining PlayerName's match", "s-opp"),
+      note("no code to type — the link brought you straight here"),
+      inp("your name… (new? add one)", "s-opp"),
+      btn("Join now", "s-act"),
+    )),
   },
 
   // ── col 3 · lobby / automatch ────────────────────────────────
@@ -184,9 +189,17 @@ export const FRAMES = [
 
   // ── col 7 · result / rematch ─────────────────────────────────
   {
-    id: "result", title: "9 · Result", tag: "results · EXISTING (minimal)", col: 7, lane: 1, w: 340, type: "stage", route: "/play · result",
-    desc: "The minimal results screen (winner + rematch + return). One honest result recorded once against the server match id. Win/loss/forfeit shown distinctly.",
-    wire: stage("result", col(box("YOU WIN!", "hero s-you"), box("recorded · match #AB12CD", "s-net"), row(btn("↻ Rematch", "s-act"), btn("Leaderboard", "s-act")), btn("Leave"))),
+    id: "result", title: "9 · Result", tag: "NEW · modal over the game", col: 7, lane: 1, w: 360, type: "stage", route: "/play · result", isNew: true,
+    desc: "The win state is a <b>modal that floats over the game screen</b> (per your note) — the fight stays visible, dimmed, behind it; it's not a separate page. One honest result, recorded once. Win / loss / forfeit shown distinctly. <b>Exiting the modal takes you back home.</b>",
+    wire: stage("/play · win", `<div class="wf-modal-over">
+      <div class="wf-behind">${row(av("P1", "s-you"), box("VS", "vs"), av("P2", "s-opp"))}</div>
+      <div class="wf-winmodal">
+        ${box("YOU WIN!", "hero s-you")}
+        ${box("recorded · match #AB12CD", "s-net")}
+        ${row(btn("↻ Rematch", "s-act"), btn("Leaderboard", "s-act"))}
+        ${btn("Exit → Home")}
+      </div>
+    </div>`),
   },
   {
     id: "rematch", title: "10 · Rematch", tag: "NEW", col: 7, lane: 0, w: 320, type: "stage", route: "/online · lobby", isNew: true,
