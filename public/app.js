@@ -150,28 +150,52 @@ function routeEdge(a, b) {
 }
 
 function drawEdges() {
-  edges.innerHTML = `<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#9aa0a6"/></marker></defs>`;
+  const ns = "http://www.w3.org/2000/svg";
+  // Two arrowheads: default gray, and a magenta one swapped in on hover (CSS).
+  edges.innerHTML =
+    `<defs>` +
+    `<marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#9aa0a6"/></marker>` +
+    `<marker id="arrow-hi" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="var(--s-mag)"/></marker>` +
+    `<marker id="arrow-hi-back" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="var(--s-cyan)"/></marker>` +
+    `</defs>`;
   const rect = (id) => { const n = document.getElementById(`node-${id}`); return { x: n.offsetLeft, y: n.offsetTop, w: n.offsetWidth, h: n.offsetHeight }; };
   let mx = 0, my = 0;
   for (const link of LINKS) {
     const a = rect(link.from), b = rect(link.to);
     mx = Math.max(mx, a.x + a.w, b.x + b.w); my = Math.max(my, a.y + a.h, b.y + b.h);
     const { pts, lx, ly } = routeEdge(a, b);
-    const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    p.setAttribute("d", orthoPath(pts)); p.setAttribute("class", "edge"); p.setAttribute("marker-end", "url(#arrow)");
-    edges.appendChild(p);
+    const d = orthoPath(pts);
+    // One group per edge so a hover lights the line AND its label together.
+    // Direction: a target that sits left of its source is a BACKWARD flow
+    // (loop-backs like rematch→select, leaderboard→home) — those glow cyan on
+    // hover; normal left→right forward flows glow magenta.
+    const backward = b.x + b.w / 2 < a.x + a.w / 2 - 1;
+    const grp = document.createElementNS(ns, "g");
+    grp.setAttribute("class", "edge-grp" + (backward ? " back" : ""));
+    const p = document.createElementNS(ns, "path");
+    p.setAttribute("d", d); p.setAttribute("class", "edge"); p.setAttribute("marker-end", "url(#arrow)");
+    grp.appendChild(p);
+    // Invisible wide stroke = a comfortable hover target over the thin line.
+    const hit = document.createElementNS(ns, "path");
+    hit.setAttribute("d", d); hit.setAttribute("class", "edge-hit");
+    grp.appendChild(hit);
     if (link.label) {
-      const ns = "http://www.w3.org/2000/svg", g = document.createElementNS(ns, "g");
+      const g = document.createElementNS(ns, "g");
+      g.setAttribute("class", "edge-label-g");
       const t = document.createElementNS(ns, "text");
       t.setAttribute("x", lx); t.setAttribute("y", ly - 4);
       t.setAttribute("class", "edge-label"); t.setAttribute("text-anchor", "middle"); t.setAttribute("dominant-baseline", "middle");
       t.textContent = link.label;
-      g.appendChild(t); edges.appendChild(g);
+      g.appendChild(t);
       const bb = t.getBBox(), r = document.createElementNS(ns, "rect");
       r.setAttribute("x", bb.x - 8); r.setAttribute("y", bb.y - 4); r.setAttribute("width", bb.width + 16); r.setAttribute("height", bb.height + 8);
       r.setAttribute("rx", 9); r.setAttribute("class", "edge-label-bg");
       g.insertBefore(r, t);
+      grp.appendChild(g);
     }
+    const on = () => grp.classList.add("hi"), off = () => grp.classList.remove("hi");
+    hit.addEventListener("mouseenter", on); hit.addEventListener("mouseleave", off);
+    edges.appendChild(grp);
   }
   edges.setAttribute("width", mx + 200); edges.setAttribute("height", my + 200);
 }
@@ -183,7 +207,6 @@ function renderLegend() {
   const item = (sw, b, s, sem) => `<div class="legend-item"${sem ? ` data-sem="${sem}"` : ""}>${sw}<div><b>${b}</b><span>${s}</span></div></div>`;
   el.innerHTML =
     `<div class="legend-group"><h4>Semantic color <span style="text-transform:none;letter-spacing:0">— hover to glow</span></h4>${LEGEND.color.map(([c, b, s]) => item(swatch(c), b, s, c)).join("")}</div>` +
-    (COMMENTS ? `<div class="legend-group"><h4>Markers</h4>${item(`<div class="legend-swatch mark-new"></div>`, "NEW for multiplayer", "added by this work; unmarked = existing screen, reused")}</div>` : "") +
     `<div class="legend-group"><h4>Frame type</h4>${item(`<div class="legend-swatch frame-stage"></div>`, "Game window (16:9)", "true-proportion fixed stage a screen renders in")}${item(`<div class="legend-swatch frame-page"></div>`, "Whole page", "element lives OUTSIDE the game window (e.g. diagnostics drawer)")}</div>` +
     `<div class="legend-group"><h4>Reading the map</h4><div class="legend-item"><div><span>Arrows = flow transitions. Top lane = branches, middle = the online happy path, bottom = alternate/error paths.</span></div></div></div>`;
 }

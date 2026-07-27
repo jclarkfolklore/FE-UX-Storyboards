@@ -19,6 +19,8 @@
   /* semantic hues */
   --s-act: #2f6fd6; --s-you: #2f9e5b; --s-opp: #128a97;
   --s-wait: #c07d10; --s-err: #d24141; --s-net: #7458c9; --s-new: #c24fac;
+  --s-mag: #e11ad0; /* forward-flow edge-trace hover glow */
+  --s-cyan: #10c3dd; /* backward-flow (loop-back) edge-trace hover glow */
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; font-family: var(--sans); color: var(--ink); font-size: 15px; }
@@ -76,9 +78,24 @@ body.marquee-mode .viewport { cursor: crosshair; }
 .viewport.grabbing { cursor: grabbing; }
 .world { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
 .edges { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; z-index: 1; }
-.edge { fill: none; stroke: #98a0ad; stroke-width: 2.25; }
+.edge { fill: none; stroke: #98a0ad; stroke-width: 2.25; transition: stroke .1s ease, stroke-width .1s ease; }
 .edge-label { font-family: var(--mono); font-size: 13.5px; fill: #333a45; font-weight: 500; }
 .edge-label-bg { fill: rgba(255, 255, 255, .94); stroke: #ccd2da; stroke-width: 1; }
+/* edge tracing: hover anywhere near a line to glow it (and its label) magenta.
+   The container is pointer-transparent; only the wide invisible hit-stroke of
+   each edge catches the hover, so node interactions underneath are unaffected. */
+.edge-hit { fill: none; stroke: transparent; stroke-width: 20; pointer-events: stroke; cursor: pointer; }
+/* forward flows → magenta */
+.edge-grp.hi .edge { stroke: var(--s-mag); stroke-width: 3.5; marker-end: url(#arrow-hi);
+  filter: drop-shadow(0 0 5px rgba(225, 26, 208, .85)) drop-shadow(0 0 2px rgba(225, 26, 208, .9)); }
+.edge-grp.hi .edge-label { fill: #fff; font-weight: 700; }
+.edge-grp.hi .edge-label-bg { fill: var(--s-mag); stroke: var(--s-mag);
+  filter: drop-shadow(0 1px 4px rgba(225, 26, 208, .5)); }
+/* backward flows (loop-backs) → cyan, to distinguish them at a glance */
+.edge-grp.hi.back .edge { stroke: var(--s-cyan); marker-end: url(#arrow-hi-back);
+  filter: drop-shadow(0 0 5px rgba(16, 195, 221, .9)) drop-shadow(0 0 2px rgba(16, 195, 221, .95)); }
+.edge-grp.hi.back .edge-label-bg { fill: var(--s-cyan); stroke: var(--s-cyan);
+  filter: drop-shadow(0 1px 4px rgba(16, 195, 221, .5)); }
 .hint { position: absolute; bottom: 14px; left: 16px; font-size: 12.5px; color: #4a5160;
   background: var(--glass-strong); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
   padding: 6px 14px; border-radius: 22px; z-index: 5; border: 1px solid var(--glass-brd); box-shadow: var(--glass-shadow); }
@@ -132,6 +149,8 @@ body.marquee-mode .viewport { cursor: crosshair; }
 .wf-box.grow { flex: 1; }
 .wf-box.hero { font-weight: 800; letter-spacing: .06em; text-align: center; font-size: 16px; }
 .wf-btn { border: 1.5px solid #52596a; border-radius: 6px; padding: 9px 12px; font-size: 13.5px; text-align: center; background: #fff; color: #333; }
+.wf-btn.primary { font-size: 15px; font-weight: 700; padding: 12px 14px; box-shadow: 0 3px 12px rgba(47, 111, 214, .32); }
+.wf-btn.ghost { background: #f6f7f9; color: #667; border-color: var(--line-strong); border-style: dashed; }
 .wf-input { border: 1px solid var(--line-strong); border-radius: 6px; padding: 8px 11px; font-size: 13.5px; color: var(--faint); background: #fff; flex: 1; }
 .wf-pill { border: 1px solid var(--line-strong); border-radius: 22px; padding: 3px 12px; font-size: 12.5px; color: #555; background: #fff; }
 .wf-avatar { width: 44px; height: 44px; border: 1.5px solid var(--line-strong); border-radius: 50%; display: grid; place-items: center; font: 11px var(--mono); color: #555; background: #fff; }
@@ -158,6 +177,7 @@ body.marquee-mode .viewport { cursor: crosshair; }
 .wf-fhud-side.s-opp .wf-bar { background: #b6dfe4; border-color: var(--s-opp); }
 .wf-fighters { flex: 1; display: flex; gap: 10px; justify-content: center; align-items: center; }
 .wf-conn-chip { position: absolute; bottom: 5px; right: 7px; font: 11px var(--mono); background: #fff; border-radius: 11px; padding: 2px 8px; }
+.wf-gear { position: absolute; top: 6px; right: 8px; font: 11px var(--mono); background: #fff; border: 1px solid var(--line-strong); border-radius: 8px; padding: 2px 7px; color: #555; z-index: 3; }
 .wf-drawer { width: 178px; flex: none; background: #2b2934; color: #eee; border-radius: 7px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
 .wf-drawer-h { font: 11px var(--mono); color: #bcc; margin-bottom: 3px; }
 .wf-drawer .wf-box { background: #383641; border-color: #565261; color: #ddd; font-size: 12px; }
@@ -187,11 +207,11 @@ body.marquee-mode .viewport { cursor: crosshair; }
 
 /* ---- comments (per-card + the merged notes/selection bar) ---- */
 /* comment section = a core feature: make it obvious, not a faint gray strip */
-.wf-comments-toggle { width: 100%; text-align: left; font: inherit; font-size: 14px; font-weight: 600; padding: 12px 15px;
-  background: linear-gradient(180deg, #eef4ff, #e3edff); color: var(--s-act);
-  border: none; border-top: 2px solid #c6dcff; cursor: pointer; }
-.wf-comments-toggle:hover { background: #dbe9ff; }
-.wf-comments.open .wf-comments-toggle { background: #dbe9ff; border-bottom: 1px solid #c6dcff; }
+.wf-comments-toggle { width: 100%; text-align: left; font: inherit; font-size: 14px; font-weight: 700; padding: 12px 15px;
+  background: linear-gradient(180deg, #fff2a8, #ffe775); color: #7a5c00;
+  border: none; border-top: 2px solid #f2d24e; cursor: pointer; }
+.wf-comments-toggle:hover { background: #ffe770; }
+.wf-comments.open .wf-comments-toggle { background: #ffe770; border-bottom: 1px solid #f2d24e; }
 .wf-comments-toggle .count { display: inline-block; margin-left: 4px; min-width: 18px; text-align: center; color: #fff; background: var(--s-err); border-radius: 9px; padding: 1px 6px; font-size: 12px; }
 .wf-comments-toggle .count:empty { display: none; }
 .wf-comments-toggle .chev { float: right; transition: transform .12s; }

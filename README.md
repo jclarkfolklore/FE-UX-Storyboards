@@ -92,7 +92,13 @@ npx netlify-cli deploy --prod --dir=public
 
 ## 📌 Status
 
-**Open** — awaiting review of the flow. On conclusion, the agreed decisions fold into `conductor/planning/multiplayer/` (mode framework/017, lobby/012, connection feedback/011.9 · 011.13, leaderboard/015, identity/010, and the *For design / UX* sections), and the spike is concluded via `/spike conclude`.
+**Resolved (pending board alignment)** — the flow has been reviewed and the open questions decided. Authoritative records:
+
+- [`SPEC.md`](SPEC.md) — the resolved spike spec (retroactive): purpose, invariants, every screen, cross-cutting systems, decomposition map, definition of done.
+- [`reviews/001-ux-flow-and-composition-review.md`](reviews/001-ux-flow-and-composition-review.md) — first review (boards as source of truth).
+- [`reviews/001-decisions.md`](reviews/001-decisions.md) — the eight owner decisions.
+
+On board alignment + decomposition, the agreed decisions fold into `conductor/planning/multiplayer/` (mode framework/017, lobby/012, connection feedback/011.9 · 011.13, leaderboard/015, identity/010) per the reconciliation list in the decisions doc, and the spike is concluded via `/spike conclude`.
 
 ## 🔗 References
 
