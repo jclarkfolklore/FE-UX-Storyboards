@@ -285,7 +285,13 @@ body.comments-open #tool-fabs { right: 352px; transition: right .2s var(--ease);
 .cmt-text:first-of-type { border-top: none; }
 .cmt-time { display: block; font: 10px var(--mono); color: var(--dim); margin-bottom: 2px; }
 .cmt-empty { color: var(--dim); font-size: 13px; text-align: center; padding: 24px 0; }
-#comments-toggle .ic { width: 15px; height: 15px; vertical-align: -3px; }
+/* square + blue by default, matching the Key (#nav-menu) button; spaced off the toolbar group */
+#comments-toggle { flex: none; width: 40px; height: 40px; margin-left: 16px; border: none; border-radius: 11px;
+  cursor: pointer; display: grid; place-items: center; background: var(--s-act); color: #fff;
+  box-shadow: 0 3px 11px rgba(47, 111, 214, .38); transition: transform .1s, filter .12s; }
+#comments-toggle:hover { transform: translateY(-1px); filter: brightness(1.08); }
+#comments-toggle.on { background: #1f57b5; box-shadow: 0 3px 14px rgba(31, 87, 181, .5); }
+#comments-toggle .ic { width: 18px; height: 18px; }
 
 /* ---- info button + design-brief modal ---- */
 .tbtn .ic { width: 15px; height: 15px; vertical-align: -3px; margin-right: 4px; }

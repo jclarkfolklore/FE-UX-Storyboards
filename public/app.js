@@ -234,9 +234,9 @@ function setupCommentsPanel() {
   const tools = document.querySelector(".topbar .tools");
   if (tools && !document.getElementById("comments-toggle")) {
     const b = document.createElement("button");
-    b.id = "comments-toggle"; b.className = "tbtn"; b.title = "browse all comments";
+    b.id = "comments-toggle"; b.title = "browse all comments";
     b.innerHTML = ICON_CHAT;
-    tools.insertBefore(b, tools.firstChild);
+    tools.appendChild(b); // far right, after the zoom/fit/center/reset group
   }
   if (!document.getElementById("comments-panel")) {
     const aside = document.createElement("aside");
