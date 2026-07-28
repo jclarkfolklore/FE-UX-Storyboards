@@ -212,6 +212,8 @@ A single **screen → route-per-mode** table is the routing contract for the mod
 
 ## 7. What this feeds (decomposition map)
 
+> **Full traceability** — the per-screen → ticket → backend matrix, the reverse "every backend capability has a surface" check, and the netcode-reality cross-check all live in `conductor/planning/multiplayer/coordination.md`. Track shape + generation order live in `conductor/planning/multiplayer/decomposition.md`. This table is the group-level summary.
+
 | Area | Screens | Plan target |
 |---|---|---|
 | Mode framework + routing | `mode-select`, route table | 017 |
