@@ -127,6 +127,7 @@ note about a group of cards.
 | Symptom | Fix |
 |---|---|
 | A tool replies *"Cannot reach the storyboard server"* | `npm start` isn't running, or it's on another port. Set `STORYBOARDS_URL` to match. |
+| `npm start` says *"Port 4321 is already in use"*, or a tool says *"…isn't the storyboard server"* | Another program owns port 4321. Run `PORT=4322 npm start`, and set `STORYBOARDS_URL` to `http://localhost:4322` in your MCP config. |
 | The tools don't appear in Claude Desktop | The config path must be **absolute**, and the JSON must be valid. Fully quit and reopen the app. Logs are in `~/Library/Logs/Claude/mcp*.log` on macOS. |
 | `node: command not found` from Claude Desktop | Desktop apps may not see your shell's `PATH`. Put the full path to node in `"command"`, for example the output of `which node`. |
 | `No such built-in module: node:sqlite` | Node is too old. The server needs **22.13+**. `mcp.mjs` itself only needs Node 18+. |

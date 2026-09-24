@@ -28,7 +28,10 @@ async function api(path, body) {
   } catch {
     throw new Error(`Cannot reach the storyboard server at ${BASE}. Start it with \`npm start\` in the FE-UX-Storyboards folder (or set STORYBOARDS_URL).`);
   }
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json().catch(() => null);
+  if (res.status === 404 || data === null) {
+    throw new Error(`Something is running at ${BASE}, but it isn't the storyboard server. Check which port \`npm start\` printed and set STORYBOARDS_URL to match.`);
+  }
   if (!res.ok) throw new Error(data.error || `${path} → HTTP ${res.status}`);
   return data;
 }

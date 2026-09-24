@@ -114,4 +114,9 @@ const server = createServer(async (req, res) => {
   } catch { res.writeHead(404).end("not found"); }
 });
 
+server.on("error", (err) => {
+  if (err.code !== "EADDRINUSE") throw err;
+  console.error(`\n  Port ${PORT} is already in use by another program.\n  Start on a different port instead, e.g.:  PORT=4322 npm start\n  (then point your AI at http://localhost:4322 — see docs/USING-WITH-AI.md)\n`);
+  process.exit(1);
+});
 server.listen(PORT, HOST, () => console.log(`\n  FE-UX-Storyboards → http://${HOST === "0.0.0.0" ? "localhost" : HOST}:${PORT}\n  Comments persist in comments.db (SQLite, recoverable). Deployed build is view-only.\n`));
