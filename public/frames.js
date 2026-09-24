@@ -49,6 +49,45 @@ const gameWindow = (body) => `<div class="wf-gamewin"><div class="wf-gamewin-tag
 // new-vs-existing scaffolding distinction is retired. Leaving the set empty
 // means no frame renders the NEW badge; isNew is derived below.
 // ─────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────
+// BOARD — the page title and the "What is this?" brief. Replace these for your
+// own project; everything else on the page is driven by FRAMES / LINKS / LEGEND.
+// ─────────────────────────────────────────────────────────────────────────
+export const BOARD = {
+  title: "Multiplayer UX — Flow Storyboards",
+  eyebrow: "Design spike · what we're figuring out",
+  meta: "wireframes · theme-agnostic · design spike",
+  info: `
+<h2>Designing online multiplayer for Rock-em-Sock-em</h2>
+<p class="modal-lede">Today the game is <b>local-only</b> — two players share one keyboard. This spike designs the <b>experience</b> of playing online: how you get from the home screen into a match against someone else, and back out. We agree the <b>flow and layout</b> here, before any UI is built.</p>
+
+<div class="modal-cols">
+  <section class="modal-sec">
+    <h3>Why it matters</h3>
+    <p>Local-only caps the game at a demo. Online turns it into something people actually use: <b>send a friend a link and fight</b>, get <b>matched</b> with whoever's around, or <b>practice against a bot</b> alone.</p>
+  </section>
+  <section class="modal-sec">
+    <h3>Why decide it now</h3>
+    <p>The visuals will change and evolve — we're <b>not</b> locking a look, and we don't prescribe a technical solution here. But agreeing the <b>flow</b>, and <b>which screens are new vs. reused</b>, prevents building unreviewed UX and expensive rework later.</p>
+  </section>
+</div>
+
+<h3 class="modal-crit-h">What the design must satisfy</h3>
+<ul class="modal-crit">
+  <li><b>Starts from the real home</b> — the actual landing screen is unchanged; a mode-select step comes after it.</li>
+  <li><b>Invite by link</b> — a friend joins by opening a URL, with no account or setup to accept.</li>
+  <li><b>Automatch</b> — pair with whoever's waiting, and never leave someone waiting forever.</li>
+  <li><b>Lobby</b> — both players see each other, pick fighters and a <b>shared stage</b>, and ready up.</li>
+  <li><b>Rematch</b> — run it back by mutual agreement, without exchanging a new link.</li>
+  <li><b>Connection feedback</b> — a player can tell <i>"it's the network"</i> from <i>"the game broke"</i> (unstable vs. left).</li>
+  <li><b>Identity</b> — a name kept in the browser, no accounts; renaming keeps your record.</li>
+  <li><b>Leaderboard</b> — wins and losses, multiplayer matches only.</li>
+  <li><b>One fixed window</b> — everything lives inside the game's fixed 16:9 stage window; theme is per-player and layered on later.</li>
+</ul>
+<p class="modal-foot">Read the map with the <b>Key</b> (top-left). Cards marked <b>NEW</b> are added by this work; unmarked screens already exist and are reused.</p>
+`,
+};
+
 export const NEW_SCREENS = new Set([]);
 
 export const FRAMES = [

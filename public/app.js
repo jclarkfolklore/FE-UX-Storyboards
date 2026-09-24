@@ -1,4 +1,4 @@
-import { FRAMES, LINKS, LEGEND } from "./frames.js";
+import { BOARD, FRAMES, LINKS, LEGEND } from "./frames.js";
 
 // Carbon "Chat" icon (no emoji) for the comment surfaces
 const ICON_CHAT = `<svg class="ic" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M17.74 30L16 29l4-7h6a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9v2H6a4 4 0 0 1-4-4V8a4 4 0 0 1 4-4h20a4 4 0 0 1 4 4v12a4 4 0 0 1-4 4h-4.84Z"/></svg>`;
@@ -471,6 +471,11 @@ function selectInRect(x0, y0, x1, y1) {
 
 // ---------------- boot ----------------
 (async function boot() {
+  document.title = BOARD.title;
+  document.getElementById("board-title").textContent = BOARD.title;
+  document.getElementById("info-eyebrow").textContent = BOARD.eyebrow;
+  document.getElementById("info-meta").textContent = BOARD.meta;
+  document.getElementById("info-body").innerHTML = BOARD.info;
   await detectAndLoad();
   document.getElementById("info-mode").textContent = COMMENTS ? "feedback loop on · comments.db (local)" : "view only · static build";
   if (!COMMENTS) { // deployed/static: view-only — no comment tools, and NEW signifiers are irrelevant to the team view

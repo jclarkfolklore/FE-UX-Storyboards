@@ -1,8 +1,18 @@
 {
-  "name": "multiplayer-ux-storyboards",
-  "version": "0.1.0",
+  "name": "fe-ux-storyboards",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Theme-agnostic wireframe storyboards (canvas viewer) for rock-em-sock-em multiplayer UX — design spike.",
-  "scripts": { "start": "node server.mjs" }
+  "description": "Wireframe storyboards on an infinite canvas, with a local comment server and an MCP server so an AI can read and act on design feedback. Zero dependencies.",
+  "scripts": {
+    "start": "node server.mjs",
+    "mcp": "node mcp.mjs"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jclarkfolklore/FE-UX-Storyboards.git"
+  }
 }
